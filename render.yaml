@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: discord-ytlive-automessenger
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: DISCORD_WEBHOOK_URL
+        sync: false
+      - key: YT_CHANNEL_ID
+        sync: false
+      - key: YT_API_KEY
+        sync: false
+      - key: CRON_SECRET
+        generateValue: true
+      - key: MESSAGE_TEMPLATE
+        value: "{channel} is live now!\n{title}\n{url}"
+      - key: MENTION
+        value: ""
+      - key: USE_EMBED
+        value: "true"
+      - key: POLL_INTERVAL_SECONDS
+        value: "300"
+      - key: ANNOUNCE_ON_FIRST_RUN
+        value: "false"

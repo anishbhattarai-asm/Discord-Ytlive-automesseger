@@ -1,0 +1,19 @@
+{
+  "name": "discord-ytlive-automessenger",
+  "version": "1.0.0",
+  "description": "Posts a Discord message automatically when you go live on YouTube, once per stream.",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "check": "node server.js --once"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  },
+  "license": "MIT"
+}
