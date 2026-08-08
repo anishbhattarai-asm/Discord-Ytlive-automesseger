@@ -88,6 +88,13 @@ export function validateConfig(cfg = config) {
     problems.push("Set either YT_CHANNEL_ID or YT_CHANNEL_HANDLE.");
   }
 
+  if (!cfg.apiKey) {
+    problems.push(
+      "YT_API_KEY is not set. Create a free key by enabling YouTube Data API v3 at " +
+        "console.cloud.google.com, then add it. See section 5 of the readme.",
+    );
+  }
+
   return problems;
 }
 

@@ -18,7 +18,7 @@ start, nothing to click, and nothing to do per stream.
 | --- | --- |
 | Create the Discord webhook | Checking whether you are live |
 | Find your YouTube channel ID | Sending the message |
-| Get an API key, if you want one | Keeping itself awake so it never sleeps |
+| Get a free YouTube API key | Keeping itself awake so it never sleeps |
 | Deploy it and paste in your values | Making sure only one message is sent |
 
 There is no scheduler to register for and no cron account to create. The
@@ -175,7 +175,7 @@ Now the full run through.
     ```
     DISCORD_WEBHOOK_URL    the URL you copied from Discord
     YT_CHANNEL_ID          your channel ID, or use @yourhandle
-    YT_API_KEY             optional, leave this one out if you prefer
+    YT_API_KEY             your YouTube API key, see section 5
     CRON_SECRET            the long random line you generated above
     ```
 
@@ -196,7 +196,7 @@ You do not need any of the following, whatever you may have read elsewhere:
 * No GitHub secrets. Those are only for the optional backup in section 8.
 * No Discord bot, no bot token, no permissions to configure.
 * No database.
-* No API key, strictly speaking. It works without one and is steadier with one.
+* No payment anywhere. Every part of this, the API key included, is free.
 
 Everything after this point in the guide is optional detail. Read it when you
 want to change the message, add a backup timer, or work out why something is
@@ -208,7 +208,7 @@ not behaving.
 2. Which modules get installed
 3. Step 1, create the Discord webhook
 4. Step 2, find your YouTube channel ID
-5. Step 3, get a YouTube API key (optional)
+5. Step 3, get a YouTube API key
 6. Step 4, run it on your own computer
 7. Step 5, put it online with Render
 8. Step 6, the cron ping, automatic plus optional schedulers
@@ -227,7 +227,7 @@ not behaving.
 | A Discord server | You need the Manage Webhooks permission on it, which server owners already have. |
 | A YouTube channel | The one you go live on. |
 | A GitHub account | Only if you want to host it online. |
-| A YouTube Data API key | Optional but recommended. Free. |
+| A YouTube Data API key | Required, and free. See section 5. |
 
 To check whether Node is already installed, open a terminal (Command Prompt or
 PowerShell on Windows, Terminal on Mac) and run:
@@ -291,10 +291,13 @@ The channel ID is the safer option. To find it:
 If your address bar shows a handle such as youtube.com/@yourname instead, you
 can simply use @yourname. The project will look up the ID for you.
 
-## 5. Step 3, get a YouTube API key (optional)
+## 5. Step 3, get a YouTube API key
 
-The project works without a key by reading your public channel page. Adding a
-key makes the live check more reliable, and it is free.
+This is required, and it is free. The service will not start without it.
+
+The key does three things. It makes the live check reliable, and it supplies
+the two parts of the card that the public page does not expose, which are your
+channel picture and the stream description.
 
 1. Go to console.cloud.google.com and sign in.
 2. Create a new project, any name works.
@@ -303,7 +306,15 @@ key makes the live check more reliable, and it is free.
 5. Copy the key.
 
 Each check costs about 2 units out of a free daily allowance of 10000 units, so
-checking every minute still stays well inside the free limit.
+checking every minute still stays well inside the free limit. Announcing costs
+one extra unit, for fetching your channel picture.
+
+You do not need to enter card details, and there is no paid tier to fall into.
+
+If your key ever stops working, by being deleted or by running out of quota,
+the service does not go silent. It falls back to reading the public page, so
+you still get announced, just without the picture and the description. Fix the
+key and the full card returns by itself.
 
 ## 6. Step 4, run it on your own computer
 
@@ -341,7 +352,7 @@ Do this first to confirm everything works before putting it online.
    ```
    DISCORD_WEBHOOK_URL=the URL you copied from Discord
    YT_CHANNEL_ID=your channel ID, or use YT_CHANNEL_HANDLE=@yourname
-   YT_API_KEY=your API key if you made one, otherwise leave it blank
+   YT_API_KEY=your API key from section 5
    CRON_SECRET=any random text you invent
    ```
 
@@ -435,7 +446,7 @@ Two different places store values, and mixing them up is the usual cause of a
 | --- | --- | --- | --- |
 | DISCORD_WEBHOOK_URL | yes, required | no | no |
 | YT_CHANNEL_ID | yes, required | no | no |
-| YT_API_KEY | yes, if you have one | no | no |
+| YT_API_KEY | yes, required | no | no |
 | CRON_SECRET | yes | only for Option A | goes in the URL |
 | SERVICE_URL | no, Render knows it | only for Option A | goes in the URL |
 
@@ -608,13 +619,11 @@ carries:
 * Your channel name, with your channel picture beside it
 * The stream title, as a clickable link
 * A line saying your channel is now live on YouTube
-* The stream description, if you have an API key
+* The stream description
 * The large stream thumbnail
 * A YouTube Live footer with the time the stream started
 
-Two of those need YT_API_KEY, because the public page does not expose them: the
-channel picture and the description. Everything else works without a key. Set
-SHOW_DESCRIPTION to false if you would rather leave the description off.
+Set SHOW_DESCRIPTION to false if you would rather leave the description off.
 
 This is the same layout the paid announcement bots produce, so you are not
 giving anything up by hosting it yourself.
@@ -622,19 +631,20 @@ giving anything up by hosting it yourself.
 ## 10. All settings
 
 Every setting goes in .env when running locally, or in Environment Variables on
-Render. Only the first two are required.
+Render. Only the first three are required, and the service refuses to start
+without them.
 
 | Setting | Default | What it does |
 | --- | --- | --- |
 | DISCORD_WEBHOOK_URL | none | Required. Where the message is sent. |
 | YT_CHANNEL_ID | none | Required unless you set the handle. Your channel ID. |
 | YT_CHANNEL_HANDLE | none | Use instead of the ID, for example @yourname. |
-| YT_API_KEY | none | Optional. Makes the live check more reliable. |
+| YT_API_KEY | none | Required. The live check, the channel picture and the description. |
 | CRON_SECRET | none | Password for the protected endpoints. Without it they are switched off. |
 | MESSAGE_TEMPLATE | see above | The message text. |
 | MENTION | empty | Who gets pinged. |
 | USE_EMBED | true | Show the thumbnail card. |
-| SHOW_DESCRIPTION | true | Put the stream description on the card. Needs an API key. |
+| SHOW_DESCRIPTION | true | Put the stream description on the card. |
 | EMBED_COLOR | 16711680 | Card colour as a number. 16711680 is red. |
 | WEBHOOK_USERNAME | empty | Override the name the message is posted under. |
 | WEBHOOK_AVATAR_URL | empty | Override the avatar image. |
@@ -713,8 +723,15 @@ your YouTube account.
 ## 13. Troubleshooting
 
 **It says a configuration problem and stops immediately.**
-DISCORD_WEBHOOK_URL or the channel setting is missing or misspelled. The error
-message names the one it wants.
+One of the three required values is missing or misspelled, which are
+DISCORD_WEBHOOK_URL, the channel setting, and YT_API_KEY. The error message
+names the one it wants.
+
+**The message arrives but has no picture or description.**
+Your API key is not working, so it fell back to the public page. Look in the
+logs for a line saying the API check failed, which gives the reason. The usual
+causes are a key that was deleted, a key restricted to the wrong API, or the
+daily quota being used up. Announcements keep working meanwhile.
 
 **Nothing is posted when I go live.**
 Open /status with your key on the end. It shows lastCheckAt, lastResult and

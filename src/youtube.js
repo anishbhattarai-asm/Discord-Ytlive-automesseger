@@ -224,11 +224,21 @@ export async function findLiveVideo({ channelId, apiKey }) {
     const candidates = [
       ...new Set([livePage?.videoId, ...feed.entries.map((e) => e.id)].filter(Boolean)),
     ];
-    const video = await confirmViaApi(candidates, apiKey);
-    if (!video) return null;
+    try {
+      const video = await confirmViaApi(candidates, apiKey);
+      // The API is authoritative, so when it answers, trust it either way.
+      if (!video) return null;
 
-    video.channelAvatar = await fetchChannelAvatar(video.ownerChannelId || channelId, apiKey);
-    return video;
+      video.channelAvatar = await fetchChannelAvatar(video.ownerChannelId || channelId, apiKey);
+      return video;
+    } catch (err) {
+      // A key can stop working mid stream by running out of quota or being
+      // revoked. Announcing a plainer card beats announcing nothing, so drop
+      // to the public page rather than failing the whole check.
+      console.error(
+        `[youtube] API check failed, falling back to the public page: ${err.message}`,
+      );
+    }
   }
 
   if (livePage?.live) {
