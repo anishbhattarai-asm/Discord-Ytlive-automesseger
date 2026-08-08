@@ -224,7 +224,7 @@ not behaving.
 | Requirement | Notes |
 | --- | --- |
 | Node.js version 20 or newer | Free. Install it with one command, see the Fast way section above. Installing Node also installs npm. |
-| A Discord server | You need the Manage Webhooks permission on it, which server owners already have. |
+| A Discord server | Free, and section 3 shows how to make one if you do not have any. Creating it makes you the owner, which grants the permission this needs. |
 | A YouTube channel | The one you go live on. |
 | A GitHub account | Only if you want to host it online. |
 | A YouTube Data API key | Required, and free. See section 5. |
@@ -268,13 +268,45 @@ and npm install is the equivalent of pip install.
 A webhook is a private URL that lets anything post into one channel. This is
 what the project uses to send your message.
 
+Do this part on the desktop app or on discord.com in a browser. The mobile app
+hides the webhook settings.
+
+### If you do not have a server yet
+
+Making one is free, takes about half a minute, and gives you the permission
+this needs, because creating a server makes you its owner.
+
+1. Look at the far left of Discord, the vertical strip of circular icons.
+2. Click the green plus button at the bottom of that strip.
+3. Click Create My Own.
+4. When it asks what the server is for, click For me and my friends, or skip
+   the question.
+5. Give it a name, for example My Stream. An icon is optional.
+6. Click Create.
+
+Nobody can see the server until you invite them, so it stays private and works
+perfectly well for testing.
+
+### Add a channel for the announcements
+
+You can use the general channel that already exists, but a separate one is
+tidier.
+
+1. Hover over TEXT CHANNELS in the left panel and click the plus button.
+2. Name it live-notification.
+3. Click Create Channel.
+
+### Make the webhook
+
 1. Open Discord and go to your server.
 2. Click the server name, then Server Settings.
 3. Click Integrations, then Webhooks.
 4. Click New Webhook.
 5. Give it a name, for example Live Notifier, and choose the channel the
    announcement should appear in.
-6. Click Copy Webhook URL.
+6. The name and picture you set here are what the message appears to come from,
+   so this is where you make it look like your own bot.
+7. Click Copy Webhook URL.
 
 Keep that URL private. Anyone who has it can post in that channel.
 
