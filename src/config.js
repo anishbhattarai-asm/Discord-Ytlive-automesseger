@@ -60,6 +60,11 @@ export const config = {
   webhookUsername: (process.env.WEBHOOK_USERNAME || "").trim(),
   webhookAvatarUrl: (process.env.WEBHOOK_AVATAR_URL || "").trim(),
 
+  // Render sets RENDER_EXTERNAL_URL by itself, so self pinging needs no setup.
+  selfUrl: (process.env.SELF_URL || process.env.RENDER_EXTERNAL_URL || "").trim(),
+  // Must stay below the host's idle timeout, which is 15 minutes on Render.
+  keepAliveSeconds: int(process.env.KEEPALIVE_SECONDS, 600),
+
   pollIntervalSeconds: int(process.env.POLL_INTERVAL_SECONDS, 300),
   announceOnFirstRun: bool(process.env.ANNOUNCE_ON_FIRST_RUN, false),
   stateFile: path.resolve(
@@ -83,4 +88,27 @@ export function validateConfig(cfg = config) {
   }
 
   return problems;
+}
+
+/** Non fatal advice, printed at startup. */
+export function configWarnings(cfg = config) {
+  const warnings = [];
+
+  if (!cfg.cronSecret) {
+    warnings.push(
+      "CRON_SECRET is not set. /cron, /test, /state and /reset are disabled until you set one.",
+    );
+  } else if (cfg.cronSecret.length < 16 || cfg.cronSecret === "change-me-to-something-random") {
+    warnings.push(
+      "CRON_SECRET is short or still the example value. Use at least 16 random characters.",
+    );
+  }
+
+  if (!cfg.selfUrl) {
+    warnings.push(
+      "SELF_URL is not set and no host provided one, so the service may sleep when idle.",
+    );
+  }
+
+  return warnings;
 }
