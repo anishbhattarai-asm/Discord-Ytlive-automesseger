@@ -966,6 +966,19 @@ do, so that they are never left open to strangers.
 Ten wrong keys came from your address, so it is blocked for 15 minutes. Wait it
 out, then use the correct key.
 
+**The log prints lines starting with warning.**
+Those are settings that would quietly misbehave, so read them rather than
+ignore them. The service still starts. It warns when a ping is written into
+MESSAGE_TEMPLATE instead of MENTION, where it would never fire, when
+POLL_INTERVAL_SECONDS is low enough to threaten the API quota, when
+KEEPALIVE_SECONDS is too long to prevent the host sleeping, and when
+EMBED_COLOR is not a number.
+
+**My @everyone does not ping anyone.**
+Put it in MENTION, not in MESSAGE_TEMPLATE. The list of permitted ping types is
+built from MENTION alone, deliberately, so that a stream title containing the
+word everyone can never ping your server. The startup log warns about this.
+
 **npm install fails.**
 Check `node --version` prints v20 or higher. Older versions are missing
 features this project relies on.

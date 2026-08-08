@@ -113,8 +113,11 @@ async function readFeed(channelId) {
       .filter((e) => e.id)
       .map((e) => ({ id: e.id, title: e.title ? decodeHtml(e.title.trim()) : null }));
 
-    // The feed level <title> precedes the first <entry>.
-    const head = xml.slice(0, xml.indexOf("<entry>") + 1);
+    // The feed level <title> precedes the first <entry>. A channel with no
+    // uploads has no <entry> at all, and indexOf would return -1 and cut the
+    // document to nothing, so fall back to searching the whole feed.
+    const firstEntry = xml.indexOf("<entry>");
+    const head = firstEntry === -1 ? xml : xml.slice(0, firstEntry);
     const channelTitle = head.match(/<title>([\s\S]*?)<\/title>/)?.[1] || null;
 
     return {

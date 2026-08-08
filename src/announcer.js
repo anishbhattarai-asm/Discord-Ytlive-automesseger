@@ -83,6 +83,9 @@ export class Announcer {
   }
 
   finish(result) {
+    // Clear a stale failure once a check succeeds, otherwise /status keeps
+    // reporting an error that has already been fixed.
+    if (result.ok) this.lastError = null;
     this.lastResult = { ...result, at: new Date().toISOString() };
     return this.lastResult;
   }

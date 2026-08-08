@@ -116,6 +116,39 @@ export function configWarnings(cfg = config) {
     warnings.push(
       "SELF_URL is not set and no host provided one, so the service may sleep when idle.",
     );
+  } else if (cfg.keepAliveSeconds >= 900) {
+    warnings.push(
+      `KEEPALIVE_SECONDS is ${cfg.keepAliveSeconds}, which is longer than the 15 minute idle ` +
+        "timeout on free hosting, so the service can still fall asleep. Use 600 or less.",
+    );
+  }
+
+  // A ping put in the message body instead of MENTION silently does nothing,
+  // because allowed_mentions is built from MENTION alone so that a stream
+  // title can never ping a server by accident.
+  if (/@everyone|@here/.test(cfg.messageTemplate) && !/@everyone|@here/.test(cfg.mention)) {
+    warnings.push(
+      "MESSAGE_TEMPLATE contains @everyone or @here, but MENTION does not, so no ping will " +
+        "be sent. Move the ping into MENTION.",
+    );
+  }
+
+  // Roughly one quota unit per check, against a free daily allowance of 10000.
+  if (cfg.pollIntervalSeconds > 0) {
+    const dailyUnits = Math.round(86400 / cfg.pollIntervalSeconds);
+    if (dailyUnits > 8000) {
+      warnings.push(
+        `POLL_INTERVAL_SECONDS is ${cfg.pollIntervalSeconds}, which is about ${dailyUnits} API ` +
+          "units a day against a free allowance of 10000. Use 60 or more.",
+      );
+    }
+  }
+
+  if (process.env.EMBED_COLOR && !Number.isFinite(Number.parseInt(process.env.EMBED_COLOR, 10))) {
+    warnings.push(
+      `EMBED_COLOR is "${process.env.EMBED_COLOR}", which is not a number, so the default red ` +
+        "is being used. Give it a decimal number, for example 16711680.",
+    );
   }
 
   return warnings;
