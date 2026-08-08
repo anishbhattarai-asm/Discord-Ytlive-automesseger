@@ -1,0 +1,52 @@
+name: Keep awake and check
+
+# An optional outside scheduler. The service already keeps itself awake and
+# checks on its own, so this is a backup for the case where the host stops the
+# service entirely rather than just letting it idle.
+#
+# To switch it on, add two repository secrets under
+# Settings, Secrets and variables, Actions:
+#   SERVICE_URL   your address, for example https://yourname.onrender.com
+#   CRON_SECRET   the same value you set on your host
+#
+# Without SERVICE_URL this workflow exits quietly instead of failing, so an
+# unconfigured fork never sends you failure emails.
+
+on:
+  schedule:
+    # Every 10 minutes. GitHub does not allow anything under 5, and busy
+    # periods can delay a run, so treat the timing as approximate.
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping the service
+        env:
+          SERVICE_URL: ${{ secrets.SERVICE_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -u
+          if [ -z "${SERVICE_URL}" ]; then
+            echo "SERVICE_URL is not set, so there is nothing to ping. Skipping."
+            exit 0
+          fi
+
+          base="${SERVICE_URL%/}"
+
+          echo "Waking the service."
+          curl -fsS --max-time 30 --retry 3 --retry-delay 10 "${base}/health"
+          echo
+
+          if [ -z "${CRON_SECRET}" ]; then
+            echo "CRON_SECRET is not set, so only the wake up ping ran."
+            echo "The service checks on its own once awake."
+            exit 0
+          fi
+
+          echo "Running a live check."
+          # Sent as a header so the secret stays out of URLs and server logs.
+          curl -fsS --max-time 30 -H "x-cron-key: ${CRON_SECRET}" "${base}/cron"
+          echo

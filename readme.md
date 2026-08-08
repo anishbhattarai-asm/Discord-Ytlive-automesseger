@@ -42,7 +42,7 @@ Each of those is a single value to update, and nothing else changes.
 5. Step 3, get a YouTube API key (optional)
 6. Step 4, run it on your own computer
 7. Step 5, put it online with Render
-8. Step 6, the cron ping is automatic
+8. Step 6, the cron ping, automatic plus optional schedulers
 9. Editing the message
 10. All settings
 11. Endpoints
@@ -227,31 +227,123 @@ Your computer cannot stay on all day, so host it for free on Render.
 This project also includes render.yaml, so you can instead choose Blueprint on
 Render and it will fill in the build and start commands for you.
 
-## 8. Step 6, the cron ping is automatic
+## 8. Step 6, the cron ping
 
-There is nothing to do here. This step used to need an account on an outside
-scheduler, and it no longer does.
+**You can skip this whole step.** It is automatic now. Read on only if you want
+a second scheduler as a backup.
 
-Two things run on their own once the service starts:
+### What already runs on its own
+
+Once the service starts, two timers run inside it with no setup at all:
 
 1. It checks whether you are live every POLL_INTERVAL_SECONDS, which is 5
    minutes by default.
-2. It requests its own address every 10 minutes so that free hosting does not
-   put it to sleep. Render provides the address by itself, so this needs no
-   setting.
+2. It requests its own address every KEEPALIVE_SECONDS, which is 10 minutes by
+   default, so that free hosting does not put it to sleep. Render supplies the
+   address through RENDER_EXTERNAL_URL by itself, so there is nothing to fill
+   in.
 
-If your host does not provide a public address automatically, set SELF_URL to
+If your host does not supply a public address automatically, set SELF_URL to
 your service address and the self ping starts working.
 
 To make announcements arrive faster, lower POLL_INTERVAL_SECONDS. Setting it to
-60 means a check every minute, which is still well inside the free API quota.
+60 gives a check every minute, which is still well inside the free API quota.
 
-If you would rather drive it from outside anyway, any scheduler can request
-this address on a timer, and the built in checking will keep running alongside:
+### Why you might still add an outside scheduler
 
-```
-https://yourname.onrender.com/cron?key=YOUR_CRON_SECRET
-```
+The self ping cannot help in one case. If the host stops the service completely,
+rather than only letting it idle, then nothing inside it is running and it
+cannot wake itself. An outside scheduler covers that, because the request
+arrives from elsewhere.
+
+It is belt and braces, not a requirement. Pick one of the three below if you
+want it.
+
+### Option A, GitHub Actions, no extra signup
+
+This repository already contains the schedule at
+.github/workflows/keepalive.yml, so there is no account to create.
+
+1. Open your repository on GitHub.
+2. Go to Settings, then Secrets and variables, then Actions.
+3. Click New repository secret and add:
+
+   ```
+   Name: SERVICE_URL     Value: https://yourname.onrender.com
+   Name: CRON_SECRET     Value: the same secret you set on your host
+   ```
+
+4. Go to the Actions tab and enable workflows if GitHub asks you to.
+5. Open Keep awake and check, then click Run workflow to try it once.
+
+Until you add SERVICE_URL the workflow exits quietly, so a fork that never
+configures it does not send failure emails.
+
+Two honest limits. GitHub does not run scheduled workflows more often than
+every 5 minutes, and it delays them when its own queues are busy, so treat the
+timing as approximate. GitHub also pauses scheduled workflows on a repository
+with no activity for 60 days, and sends you an email offering to switch them
+back on.
+
+### Option B, cron-job.org
+
+1. Go to cron-job.org and create a free account.
+2. Confirm your email address and sign in.
+3. Click Create cronjob.
+4. Give it a title, for example Keep live announcer awake.
+5. In the URL box put your address with your key on the end:
+
+   ```
+   https://yourname.onrender.com/cron?key=YOUR_CRON_SECRET
+   ```
+
+   Use the exact value you set for CRON_SECRET.
+
+6. Under Schedule choose Every 5 minutes.
+7. Leave the request method as GET.
+8. Click Create, and make sure the job shows as enabled.
+
+You can open the job later to see its history, which is a quick way to confirm
+your service is answering.
+
+To keep the secret out of the URL, some schedulers let you send a header
+instead. If yours does, leave the plain address in the URL box and add a header
+named x-cron-key with your secret as its value.
+
+### Option C, UptimeRobot
+
+UptimeRobot is a monitor rather than a scheduler, but visiting your address on a
+timer is exactly what it does.
+
+1. Go to uptimerobot.com and create a free account.
+2. Click New monitor.
+3. Set Monitor Type to HTTP(s).
+4. Give it a friendly name.
+5. In the URL box put your health address, which needs no key:
+
+   ```
+   https://yourname.onrender.com/health
+   ```
+
+6. Set Monitoring Interval to 5 minutes.
+7. Click Create Monitor.
+
+This wakes the service but does not itself run a check, which is fine, because
+the service checks on its own once it is awake. Use /health here rather than
+/cron so that your secret is not stored in a monitoring tool.
+
+### Which one to pick
+
+| Situation | Choice |
+| --- | --- |
+| You want the least work | Skip this step, the service handles itself |
+| You want a backup and already use GitHub | Option A |
+| You want a real scheduler with a run history | Option B |
+| You also want to be told when your service goes down | Option C |
+
+Adding any of these alongside the built in timers is safe. Running a check more
+often than needed costs nothing, because a stream that was already announced is
+simply skipped.
 
 ## 9. Editing the message
 
