@@ -33,7 +33,98 @@ The only reasons you would ever open it again:
 
 Each of those is a single value to update, and nothing else changes.
 
-## The easy way
+## Fast way
+
+Everything here can be done from a terminal. No websites to browse, no
+installers to click through.
+
+### Install Node.js with one command
+
+You do not have to visit nodejs.org. Pick the line for your system.
+
+Windows, using winget, which ships with Windows 10 and 11:
+
+```
+winget install OpenJS.NodeJS.LTS
+```
+
+Mac, using Homebrew:
+
+```
+brew install node
+```
+
+If you do not have Homebrew yet:
+
+```
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+
+Ubuntu or Debian. The version in the default apt repository is often too old,
+so this adds the official Node source first:
+
+```
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+sudo apt-get install -y nodejs
+```
+
+Then close your terminal, open a new one so the new program is found, and
+check it worked:
+
+```
+node --version
+```
+
+Anything from v20 upward is fine.
+
+You also want git, which is how you download the project. On Windows:
+
+```
+winget install Git.Git
+```
+
+On Mac it arrives with Homebrew, and on Ubuntu use `sudo apt-get install -y git`.
+
+### The whole local setup in commands
+
+On Windows:
+
+```
+git clone https://github.com/anishbhattarai-asm/Discord-Ytlive-automesseger.git
+cd Discord-Ytlive-automesseger
+npm install
+copy .env.example .env
+node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"
+notepad .env
+npm start
+```
+
+On Mac or Linux:
+
+```
+git clone https://github.com/anishbhattarai-asm/Discord-Ytlive-automesseger.git
+cd Discord-Ytlive-automesseger
+npm install
+cp .env.example .env
+node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"
+nano .env
+npm start
+```
+
+The node command in the middle prints a long random string. That is your
+CRON_SECRET. Copy it before the editor opens.
+
+When the editor opens, fill in DISCORD_WEBHOOK_URL, YT_CHANNEL_ID and
+CRON_SECRET, then save and close it. In notepad that is Ctrl and S then close
+the window. In nano that is Ctrl and O, then Enter, then Ctrl and X.
+
+To run a single check instead of leaving it running:
+
+```
+npm run check
+```
+
+### The easy way to put it online
 
 If you want the shortest path, this is the whole thing.
 
@@ -91,7 +182,7 @@ not behaving.
 
 | Requirement | Notes |
 | --- | --- |
-| Node.js version 20 or newer | Free. Download from nodejs.org, pick the LTS button. Installing Node also installs npm. |
+| Node.js version 20 or newer | Free. Install it with one command, see the Fast way section above. Installing Node also installs npm. |
 | A Discord server | You need the Manage Webhooks permission on it, which server owners already have. |
 | A YouTube channel | The one you go live on. |
 | A GitHub account | Only if you want to host it online. |
@@ -105,7 +196,8 @@ node --version
 ```
 
 If it prints something like v20.11.0 or higher you are ready. If it says the
-command is not found, install Node.js first.
+command is not found, install Node.js with the one line command in the Fast way
+section above.
 
 ## 2. Which modules get installed
 
