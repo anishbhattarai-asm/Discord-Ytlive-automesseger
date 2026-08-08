@@ -1,5 +1,5 @@
 import { buildPayload, sendToDiscord } from "./discord.js";
-import { findLiveVideos, resolveChannelId } from "./youtube.js";
+import { findLiveVideos, resolveChannelId, verifyChannel } from "./youtube.js";
 
 export class Announcer {
   constructor(config, store) {
@@ -12,11 +12,31 @@ export class Announcer {
   }
 
   async channelId() {
-    if (!this.resolvedChannelId) {
-      this.resolvedChannelId = await resolveChannelId(this.config);
-      console.log(`[youtube] watching channel ${this.resolvedChannelId}`);
+    if (this.resolvedChannelId) return this.resolvedChannelId;
+
+    const id = await resolveChannelId(this.config);
+
+    // Name the channel in the log so a wrong but well formed ID is obvious
+    // immediately, rather than looking like a channel that is never live.
+    try {
+      const channel = await verifyChannel(id, this.config.apiKey);
+      if (channel) {
+        this.channelTitle = channel.title;
+        console.log(`[youtube] watching "${channel.title}" (${id})`);
+      } else {
+        console.warn(
+          `[youtube] warning: no channel exists with ID ${id}. Check YT_CHANNEL_ID. ` +
+            "Nothing will ever be announced until this is right.",
+        );
+      }
+    } catch (err) {
+      // A lookup failure here is not fatal, since the live check has its own
+      // fallback and may still work.
+      console.warn(`[youtube] could not confirm the channel: ${err.message}`);
     }
-    return this.resolvedChannelId;
+
+    this.resolvedChannelId = id;
+    return id;
   }
 
   /**

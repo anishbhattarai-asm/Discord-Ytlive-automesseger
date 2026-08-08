@@ -29,7 +29,14 @@ function allowedMentions(mention) {
 
 export function buildPayload(video, cfg) {
   const body = renderTemplate(cfg.messageTemplate, video);
-  const content = [cfg.mention, body].filter(Boolean).join(" ").slice(0, MAX_CONTENT);
+  let content = [cfg.mention, body].filter(Boolean).join(" ").slice(0, MAX_CONTENT);
+
+  // Discord rejects a message with neither text nor an embed, and that
+  // rejection would repeat on every check forever. An emptied out template is
+  // a plausible mistake, so fall back to something rather than never posting.
+  if (!content.trim() && !cfg.useEmbed) {
+    content = `${video.channelTitle} is live now!\n${video.url}`;
+  }
 
   const payload = {
     content,
@@ -105,9 +112,16 @@ export async function sendToDiscord(webhookUrl, payload) {
       continue;
     }
 
+    // Discord has brief outages. Retrying costs seconds, while giving up
+    // costs a whole poll interval before the announcement is tried again.
+    if (res.status >= 500 && attempt < 2) {
+      await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+      continue;
+    }
+
     const text = await res.text().catch(() => "");
     throw new Error(`Discord webhook failed: ${res.status} ${text.slice(0, 300)}`);
   }
 
-  throw new Error("Discord webhook failed: rate limited after 3 attempts");
+  throw new Error("Discord webhook failed: still failing after 3 attempts");
 }

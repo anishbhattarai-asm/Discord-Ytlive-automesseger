@@ -31,9 +31,23 @@ export async function resolveChannelId({ channelId, channelHandle }) {
   const handle = (channelHandle || channelId || "").trim();
   if (!handle) throw new Error("No YouTube channel configured.");
 
-  const url = handle.startsWith("http")
-    ? handle
-    : `https://www.youtube.com/${handle.startsWith("@") ? handle : `@${handle}`}`;
+  // Only ever fetch youtube.com. A handle is meant to be a name, and letting
+  // it be any address would turn a config mistake, or a copied line from
+  // somewhere else, into this server fetching a URL of someone else's
+  // choosing.
+  let url;
+  if (handle.startsWith("http")) {
+    const parsed = new URL(handle);
+    if (!/(^|\.)youtube\.com$/.test(parsed.hostname)) {
+      throw new Error(
+        `YT_CHANNEL_HANDLE must be a handle such as @yourname, or a youtube.com address. Got ${parsed.hostname}.`,
+      );
+    }
+    url = parsed.toString();
+  } else {
+    const name = handle.startsWith("@") ? handle : `@${handle}`;
+    url = `https://www.youtube.com/${encodeURIComponent(name)}`;
+  }
 
   const html = await httpGet(withEnglish(url));
 
@@ -163,6 +177,22 @@ async function confirmViaApi(ids, apiKey) {
         concurrentViewers: item.liveStreamingDetails?.concurrentViewers || null,
       }),
     );
+}
+
+/**
+ * Confirms the configured channel actually exists, and returns its name.
+ * A mistyped but correctly shaped ID is otherwise indistinguishable from a
+ * channel that simply is not live, so without this the service would look
+ * healthy and never announce anything.
+ */
+export async function verifyChannel(channelId, apiKey) {
+  if (!apiKey) return null;
+  const params = new URLSearchParams({ part: "snippet", id: channelId, key: apiKey });
+  const data = await httpGet(`https://www.googleapis.com/youtube/v3/channels?${params}`, {
+    json: true,
+  });
+  const snippet = data.items?.[0]?.snippet;
+  return snippet ? { id: channelId, title: snippet.title } : null;
 }
 
 /**

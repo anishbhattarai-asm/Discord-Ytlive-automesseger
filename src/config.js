@@ -57,7 +57,9 @@ export const config = {
   mention: unescape(process.env.MENTION || "").trim(),
   useEmbed: bool(process.env.USE_EMBED, true),
   showDescription: bool(process.env.SHOW_DESCRIPTION, true),
-  embedColor: int(process.env.EMBED_COLOR, 0xff0000),
+  // Discord rejects anything outside a 24 bit colour, so clamp rather than
+  // let a stray value fail every announcement.
+  embedColor: Math.min(Math.max(int(process.env.EMBED_COLOR, 0xff0000), 0), 0xffffff),
   webhookUsername: (process.env.WEBHOOK_USERNAME || "").trim(),
   webhookAvatarUrl: (process.env.WEBHOOK_AVATAR_URL || "").trim(),
 
@@ -74,24 +76,63 @@ export const config = {
   ),
 };
 
+/**
+ * The example file has to contain something on each line, and those examples
+ * are shaped like real values, so they pass a format check. Left in place they
+ * would start the service, look healthy, and never announce anything. Catch
+ * them by name instead.
+ */
+const PLACEHOLDERS = new Set([
+  "https://discord.com/api/webhooks/000000000/xxxxxxxx",
+  "ucxxxxxxxxxxxxxxxxxxxxxx",
+  "@yourhandle",
+  "yourhandle",
+  "change-me-to-something-random",
+  "your-api-key",
+]);
+
+const isPlaceholder = (value) => PLACEHOLDERS.has(String(value).trim().toLowerCase());
+
 /** Returns a list of readable problems, empty when the config is usable. */
 export function validateConfig(cfg = config) {
   const problems = [];
 
   if (!cfg.discordWebhookUrl) {
     problems.push("DISCORD_WEBHOOK_URL is not set.");
-  } else if (!/^https:\/\/(discord|discordapp)\.com\/api\/webhooks\//.test(cfg.discordWebhookUrl)) {
-    problems.push("DISCORD_WEBHOOK_URL does not look like a Discord webhook URL.");
+  } else if (isPlaceholder(cfg.discordWebhookUrl)) {
+    problems.push(
+      "DISCORD_WEBHOOK_URL is still the example value from .env.example. Replace it with the " +
+        "webhook URL copied from your own Discord channel.",
+    );
+  } else if (!/^https:\/\/(discord|discordapp)\.com\/api\/webhooks\/\d+\/[\w-]+$/.test(cfg.discordWebhookUrl)) {
+    problems.push(
+      "DISCORD_WEBHOOK_URL does not look like a Discord webhook URL. It should end with an id " +
+        "and a long token, and be copied whole.",
+    );
   }
 
   if (!cfg.channelId && !cfg.channelHandle) {
     problems.push("Set either YT_CHANNEL_ID or YT_CHANNEL_HANDLE.");
+  } else if (isPlaceholder(cfg.channelId) || isPlaceholder(cfg.channelHandle)) {
+    problems.push(
+      "The YouTube channel is still the example value from .env.example. Put your own channel " +
+        "ID or @handle there. See section 4 of the readme.",
+    );
   }
 
   if (!cfg.apiKey) {
     problems.push(
       "YT_API_KEY is not set. Create a free key by enabling YouTube Data API v3 at " +
         "console.cloud.google.com, then add it. See section 5 of the readme.",
+    );
+  } else if (isPlaceholder(cfg.apiKey)) {
+    problems.push("YT_API_KEY is still an example value. Put your own key there.");
+  }
+
+  if (cfg.cronSecret && isPlaceholder(cfg.cronSecret)) {
+    problems.push(
+      "CRON_SECRET is still the example value, which is public in this repository. " +
+        'Generate one with: node -e "console.log(require(\'crypto\').randomBytes(24).toString(\'hex\'))"',
     );
   }
 
