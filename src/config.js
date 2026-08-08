@@ -56,6 +56,7 @@ export const config = {
   ),
   mention: unescape(process.env.MENTION || "").trim(),
   useEmbed: bool(process.env.USE_EMBED, true),
+  showDescription: bool(process.env.SHOW_DESCRIPTION, true),
   embedColor: int(process.env.EMBED_COLOR, 0xff0000),
   webhookUsername: (process.env.WEBHOOK_USERNAME || "").trim(),
   webhookAvatarUrl: (process.env.WEBHOOK_AVATAR_URL || "").trim(),

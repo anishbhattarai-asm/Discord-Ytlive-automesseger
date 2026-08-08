@@ -40,20 +40,42 @@ export function buildPayload(video, cfg) {
   if (cfg.webhookAvatarUrl) payload.avatar_url = cfg.webhookAvatarUrl;
 
   if (cfg.useEmbed) {
-    payload.embeds = [
-      {
-        title: video.title.slice(0, 256),
-        url: video.url,
-        color: cfg.embedColor,
-        author: { name: video.channelTitle.slice(0, 256) },
-        image: { url: video.thumbnail },
-        footer: { text: "YouTube Live" },
-        timestamp: video.startedAt,
-      },
-    ];
+    const embed = {
+      title: video.title.slice(0, 256),
+      url: video.url,
+      color: cfg.embedColor,
+      description: `${video.channelTitle} is now live on YouTube!`.slice(0, 4096),
+      author: { name: video.channelTitle.slice(0, 256) },
+      image: { url: video.thumbnail },
+      footer: { text: "YouTube Live" },
+      timestamp: video.startedAt,
+    };
+
+    // Only present when an API key is configured, since the public page does
+    // not expose the channel picture.
+    if (video.channelAvatar) embed.author.icon_url = video.channelAvatar;
+
+    const description = (video.description || "").trim();
+    if (cfg.showDescription && description) {
+      embed.fields = [
+        {
+          name: "Description",
+          // Discord rejects a field value over 1024 characters, and a wall of
+          // text reads badly anyway, so keep the opening few lines.
+          value: truncate(description, 300),
+        },
+      ];
+    }
+
+    payload.embeds = [embed];
   }
 
   return payload;
+}
+
+function truncate(text, limit) {
+  if (text.length <= limit) return text;
+  return `${text.slice(0, limit - 3).trimEnd()}...`;
 }
 
 export async function sendToDiscord(webhookUrl, payload) {

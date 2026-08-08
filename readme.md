@@ -600,6 +600,25 @@ contains the word everyone cannot ping your server by accident.
 
 Set USE_EMBED to false if you want plain text with no thumbnail card.
 
+### What the message looks like
+
+With the embed switched on you get a line of text followed by a card. The card
+carries:
+
+* Your channel name, with your channel picture beside it
+* The stream title, as a clickable link
+* A line saying your channel is now live on YouTube
+* The stream description, if you have an API key
+* The large stream thumbnail
+* A YouTube Live footer with the time the stream started
+
+Two of those need YT_API_KEY, because the public page does not expose them: the
+channel picture and the description. Everything else works without a key. Set
+SHOW_DESCRIPTION to false if you would rather leave the description off.
+
+This is the same layout the paid announcement bots produce, so you are not
+giving anything up by hosting it yourself.
+
 ## 10. All settings
 
 Every setting goes in .env when running locally, or in Environment Variables on
@@ -615,6 +634,7 @@ Render. Only the first two are required.
 | MESSAGE_TEMPLATE | see above | The message text. |
 | MENTION | empty | Who gets pinged. |
 | USE_EMBED | true | Show the thumbnail card. |
+| SHOW_DESCRIPTION | true | Put the stream description on the card. Needs an API key. |
 | EMBED_COLOR | 16711680 | Card colour as a number. 16711680 is red. |
 | WEBHOOK_USERNAME | empty | Override the name the message is posted under. |
 | WEBHOOK_AVATAR_URL | empty | Override the avatar image. |

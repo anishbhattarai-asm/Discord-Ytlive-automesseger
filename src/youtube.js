@@ -149,6 +149,8 @@ async function confirmViaApi(ids, apiKey) {
     videoId: item.id,
     title: item.snippet?.title,
     channelTitle: item.snippet?.channelTitle,
+    description: item.snippet?.description,
+    ownerChannelId: item.snippet?.channelId,
     thumbnail:
       item.snippet?.thumbnails?.maxres?.url || item.snippet?.thumbnails?.high?.url || null,
     startedAt: item.liveStreamingDetails?.actualStartTime || null,
@@ -156,13 +158,39 @@ async function confirmViaApi(ids, apiKey) {
   });
 }
 
+/**
+ * The channel's picture, used as the small icon beside the name on the embed.
+ * Fetched only once a stream has been found, so it costs a quota unit when
+ * announcing rather than on every check.
+ */
+async function fetchChannelAvatar(channelId, apiKey) {
+  if (!channelId || !apiKey) return null;
+  try {
+    const params = new URLSearchParams({
+      part: "snippet",
+      id: channelId,
+      key: apiKey,
+    });
+    const data = await httpGet(`https://www.googleapis.com/youtube/v3/channels?${params}`, {
+      json: true,
+    });
+    const thumbs = data.items?.[0]?.snippet?.thumbnails;
+    return thumbs?.medium?.url || thumbs?.default?.url || null;
+  } catch {
+    return null;
+  }
+}
+
 function normalize(v) {
   return {
     videoId: v.videoId,
     title: v.title || "Live now",
     channelTitle: v.channelTitle || "The channel",
+    description: v.description || "",
+    ownerChannelId: v.ownerChannelId || null,
     url: `https://www.youtube.com/watch?v=${v.videoId}`,
     thumbnail: v.thumbnail || `https://i.ytimg.com/vi/${v.videoId}/maxresdefault.jpg`,
+    channelAvatar: v.channelAvatar || null,
     startedAt: v.startedAt || new Date().toISOString(),
     concurrentViewers: v.concurrentViewers ?? null,
   };
@@ -196,7 +224,11 @@ export async function findLiveVideo({ channelId, apiKey }) {
     const candidates = [
       ...new Set([livePage?.videoId, ...feed.entries.map((e) => e.id)].filter(Boolean)),
     ];
-    return await confirmViaApi(candidates, apiKey);
+    const video = await confirmViaApi(candidates, apiKey);
+    if (!video) return null;
+
+    video.channelAvatar = await fetchChannelAvatar(video.ownerChannelId || channelId, apiKey);
+    return video;
   }
 
   if (livePage?.live) {
