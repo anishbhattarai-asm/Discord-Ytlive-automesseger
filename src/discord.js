@@ -75,7 +75,14 @@ export function buildPayload(video, cfg) {
 
 function truncate(text, limit) {
   if (text.length <= limit) return text;
-  return `${text.slice(0, limit - 3).trimEnd()}...`;
+
+  const cut = text.slice(0, limit - 3);
+  // Break on the last space so the text does not stop mid word. Ignored when
+  // the tail has no space to break on, such as one very long URL.
+  const lastSpace = cut.lastIndexOf(" ");
+  const body = lastSpace > limit * 0.6 ? cut.slice(0, lastSpace) : cut;
+
+  return `${body.trimEnd()}...`;
 }
 
 export async function sendToDiscord(webhookUrl, payload) {
