@@ -910,6 +910,21 @@ Protections already in place:
   measuring how long the answer takes.
 * The public pages show no channel name, no history, and no error details.
 
+One thing to be aware of. Putting the key in the address, as key=YOUR_SECRET,
+is convenient in a browser, but hosts record the addresses they serve, so the
+key can end up in your host's request log and in your browser history. That log
+is exactly the thing people copy into a message when asking for help.
+
+For anything automated, send it as a header instead, which is never logged:
+
+```
+curl -H "x-cron-key: YOUR_SECRET" https://yourname.onrender.com/cron
+```
+
+The included GitHub Actions workflow already does this. Use the address form
+for the occasional manual check, and treat any log you share as containing the
+key until you have looked.
+
 What you should do:
 
 1. Use a long random CRON_SECRET. Generate one with this command:

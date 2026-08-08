@@ -19,9 +19,15 @@ on:
     - cron: "*/10 * * * *"
   workflow_dispatch:
 
+# This job only makes an outbound request, so it is given no access to the
+# repository at all. Without this it would inherit the default token
+# permissions, which are far wider than it needs.
+permissions: {}
+
 jobs:
   ping:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Ping the service
         env:

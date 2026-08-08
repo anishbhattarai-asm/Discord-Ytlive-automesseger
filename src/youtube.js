@@ -46,7 +46,17 @@ export async function resolveChannelId({ channelId, channelHandle }) {
     url = parsed.toString();
   } else {
     const name = handle.startsWith("@") ? handle : `@${handle}`;
-    url = `https://www.youtube.com/${encodeURIComponent(name)}`;
+    // Check the shape rather than escaping it. YouTube handles are limited to
+    // these characters, so anything else is a mistake, and this keeps slashes
+    // and dots out of the path instead of relying on the far end to decode
+    // percent escapes.
+    if (!/^@[A-Za-z0-9._-]{1,100}$/.test(name)) {
+      throw new Error(
+        `"${handle}" is not a valid YouTube handle. It should look like @yourname, using ` +
+          "letters, numbers, dots, dashes or underscores.",
+      );
+    }
+    url = `https://www.youtube.com/${name}`;
   }
 
   const html = await httpGet(withEnglish(url));
@@ -226,7 +236,9 @@ function normalize(v) {
     description: v.description || "",
     ownerChannelId: v.ownerChannelId || null,
     url: `https://www.youtube.com/watch?v=${v.videoId}`,
-    thumbnail: v.thumbnail || `https://i.ytimg.com/vi/${v.videoId}/maxresdefault.jpg`,
+    // hqdefault rather than maxresdefault, which does not exist for every
+    // video and would leave the card with no image at all.
+    thumbnail: v.thumbnail || `https://i.ytimg.com/vi/${v.videoId}/hqdefault.jpg`,
     channelAvatar: v.channelAvatar || null,
     startedAt: v.startedAt || new Date().toISOString(),
     concurrentViewers: v.concurrentViewers ?? null,

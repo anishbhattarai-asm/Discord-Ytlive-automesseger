@@ -120,6 +120,21 @@ export async function sendToDiscord(webhookUrl, payload) {
     }
 
     const text = await res.text().catch(() => "");
+
+    // 404 means the webhook no longer exists, usually because it was deleted
+    // or the channel was. Retrying cannot fix that, so say what will.
+    if (res.status === 404) {
+      throw new Error(
+        "Discord webhook no longer exists. It was probably deleted, or its channel was. " +
+          "Create a new webhook and update DISCORD_WEBHOOK_URL.",
+      );
+    }
+    if (res.status === 401 || res.status === 403) {
+      throw new Error(
+        `Discord refused the webhook (${res.status}). Check DISCORD_WEBHOOK_URL was copied whole.`,
+      );
+    }
+
     throw new Error(`Discord webhook failed: ${res.status} ${text.slice(0, 300)}`);
   }
 
