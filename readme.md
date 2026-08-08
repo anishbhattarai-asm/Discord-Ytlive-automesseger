@@ -7,6 +7,32 @@ checker runs every few minutes. The message text is yours to edit.
 
 You do not need to create a Discord bot, and you do not need a database.
 
+## This is a one time setup
+
+You set it up once, in about 15 minutes, and then you never touch it again.
+
+After that you simply go live and the message posts itself. There is nothing to
+start, nothing to click, and nothing to do per stream.
+
+| Done once | Happens on its own, forever |
+| --- | --- |
+| Create the Discord webhook | Checking whether you are live |
+| Find your YouTube channel ID | Sending the message |
+| Get an API key, if you want one | Keeping itself awake so it never sleeps |
+| Deploy it and paste in your values | Making sure only one message is sent |
+
+There is no scheduler to register for and no cron account to create. The
+service handles its own timing.
+
+The only reasons you would ever open it again:
+
+* You move the announcement to a different Discord channel, which means making
+  a new webhook, since a webhook belongs to one channel.
+* You change YouTube channel.
+* You want to reword the message.
+
+Each of those is a single value to update, and nothing else changes.
+
 ## Contents
 
 1. What you need before you start
