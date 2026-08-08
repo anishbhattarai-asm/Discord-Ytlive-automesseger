@@ -1,5 +1,5 @@
 import { buildPayload, sendToDiscord } from "./discord.js";
-import { findLiveVideo, resolveChannelId } from "./youtube.js";
+import { findLiveVideos, resolveChannelId } from "./youtube.js";
 
 export class Announcer {
   constructor(config, store) {
@@ -29,23 +29,30 @@ export class Announcer {
 
     try {
       const channelId = await this.channelId();
-      const video = await findLiveVideo({ channelId, apiKey: this.config.apiKey });
+      const videos = await findLiveVideos({ channelId, apiKey: this.config.apiKey });
 
       // Capture before touch(), which flips `initialized` to true.
       const isFirstRun = !this.store.data.initialized;
-      this.store.touch(video?.videoId);
+      this.store.touch(videos[0]?.videoId);
 
-      if (!video) {
+      if (!videos.length) {
         return this.finish({ ok: true, live: false, announced: false, trigger });
       }
 
-      if (!force && this.store.hasAnnounced(video.videoId)) {
+      // Pick the first broadcast still needing an announcement, so a second
+      // concurrent stream is not hidden behind one that is already done.
+      const video = force
+        ? videos[0]
+        : videos.find((v) => !this.store.hasAnnounced(v.videoId));
+
+      if (!video) {
         return this.finish({
           ok: true,
           live: true,
           announced: false,
           reason: "already-announced",
-          video,
+          video: videos[0],
+          liveCount: videos.length,
           trigger,
         });
       }

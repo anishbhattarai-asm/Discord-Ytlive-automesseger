@@ -2,6 +2,10 @@ import crypto from "node:crypto";
 
 const MAX_FAILURES = 10;
 const LOCKOUT_MS = 15 * 60 * 1000;
+// Entries live for 15 minutes, so without a ceiling a flood of requests from
+// many addresses could grow this map faster than the sweep clears it and
+// exhaust the memory of a small instance.
+const MAX_TRACKED_IPS = 10_000;
 
 const failures = new Map();
 
@@ -11,6 +15,16 @@ setInterval(() => {
     if (now > entry.resetAt) failures.delete(ip);
   }
 }, 60_000).unref();
+
+function remember(ip, entry) {
+  // A Map iterates in insertion order, so the first keys are the oldest and
+  // the closest to expiring anyway.
+  if (failures.size >= MAX_TRACKED_IPS && !failures.has(ip)) {
+    const oldest = failures.keys().next().value;
+    failures.delete(oldest);
+  }
+  failures.set(ip, entry);
+}
 
 /**
  * Compares by hash so the work is constant time. A plain === leaks how much of
@@ -53,8 +67,11 @@ export function authorize(req, res, config) {
     return false;
   }
 
+  // A repeated query parameter arrives as an array, so force a string rather
+  // than letting String() turn ["a","b"] into "a,b".
+  const fromQuery = Array.isArray(req.query.key) ? req.query.key[0] : req.query.key;
   const provided =
-    req.query.key ||
+    (typeof fromQuery === "string" ? fromQuery : "") ||
     req.get("x-cron-key") ||
     (req.get("authorization") || "").replace(/^Bearer\s+/i, "");
 
@@ -67,7 +84,7 @@ export function authorize(req, res, config) {
   const next = entry && Date.now() < entry.resetAt
     ? { count: entry.count + 1, resetAt: entry.resetAt }
     : { count: 1, resetAt: Date.now() + LOCKOUT_MS };
-  failures.set(ip, next);
+  remember(ip, next);
 
   res.status(401).json({ ok: false, error: "unauthorized" });
   return false;

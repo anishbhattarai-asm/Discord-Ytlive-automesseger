@@ -83,7 +83,20 @@ app.all("/reset", (req, res) => {
 
 app.use((req, res) => res.status(404).json({ ok: false, error: "not found" }));
 
-app.listen(config.port, () => {
+// Without this, a malformed JSON body falls through to Express's default
+// handler, which answers with an HTML error page from a service that is
+// otherwise entirely JSON.
+app.use((err, req, res, next) => {
+  if (res.headersSent) return next(err);
+  const status = err.status || err.statusCode || 500;
+  if (status >= 500) console.error(`[server] request failed: ${err.message}`);
+  res.status(status).json({
+    ok: false,
+    error: status === 400 ? "bad request" : "internal error",
+  });
+});
+
+const server = app.listen(config.port, () => {
   console.log(`[server] listening on :${config.port}`);
   console.log(
     `[server] YouTube API key ${config.apiKey ? "configured" : "not set, using page fallback"}`,
@@ -106,4 +119,16 @@ app.listen(config.port, () => {
   // Seed the state now so the startup grace applies immediately rather than
   // waiting for the first scheduled check.
   announcer.check({ trigger: "startup" });
+});
+
+server.on("error", (err) => {
+  if (err.code === "EADDRINUSE") {
+    console.error(
+      `Port ${config.port} is already in use. Another copy is probably still running. ` +
+        "Stop it, or set PORT to something else.",
+    );
+  } else {
+    console.error(`Server failed to start: ${err.message}`);
+  }
+  process.exit(1);
 });

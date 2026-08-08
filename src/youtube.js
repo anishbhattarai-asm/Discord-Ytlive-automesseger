@@ -134,7 +134,7 @@ async function readFeed(channelId) {
  * ids are passed (up to 50), which keeps daily usage far under the 10,000 cap.
  */
 async function confirmViaApi(ids, apiKey) {
-  if (!ids.length) return null;
+  if (!ids.length) return [];
   const params = new URLSearchParams({
     part: "snippet,liveStreamingDetails",
     id: ids.slice(0, 50).join(","),
@@ -145,20 +145,24 @@ async function confirmViaApi(ids, apiKey) {
     json: true,
   });
 
-  const item = (data.items || []).find((v) => v.snippet?.liveBroadcastContent === "live");
-  if (!item) return null;
-
-  return normalize({
-    videoId: item.id,
-    title: item.snippet?.title,
-    channelTitle: item.snippet?.channelTitle,
-    description: item.snippet?.description,
-    ownerChannelId: item.snippet?.channelId,
-    thumbnail:
-      item.snippet?.thumbnails?.maxres?.url || item.snippet?.thumbnails?.high?.url || null,
-    startedAt: item.liveStreamingDetails?.actualStartTime || null,
-    concurrentViewers: item.liveStreamingDetails?.concurrentViewers || null,
-  });
+  // Every live broadcast, not just the first. A channel can run more than one
+  // at a time, and returning only one would mean the others could never be
+  // announced, because each later check would keep finding the same one.
+  return (data.items || [])
+    .filter((v) => v.snippet?.liveBroadcastContent === "live")
+    .map((item) =>
+      normalize({
+        videoId: item.id,
+        title: item.snippet?.title,
+        channelTitle: item.snippet?.channelTitle,
+        description: item.snippet?.description,
+        ownerChannelId: item.snippet?.channelId,
+        thumbnail:
+          item.snippet?.thumbnails?.maxres?.url || item.snippet?.thumbnails?.high?.url || null,
+        startedAt: item.liveStreamingDetails?.actualStartTime || null,
+        concurrentViewers: item.liveStreamingDetails?.concurrentViewers || null,
+      }),
+    );
 }
 
 /**
@@ -216,8 +220,11 @@ function decodeHtml(s) {
     .replace(/&#39;/g, "'");
 }
 
-/** Returns the live video when the channel is live right now, else null. */
-export async function findLiveVideo({ channelId, apiKey }) {
+/**
+ * Every broadcast the channel has live right now, newest first, or an empty
+ * array. The caller decides which of them still needs announcing.
+ */
+export async function findLiveVideos({ channelId, apiKey }) {
   const [livePage, feed] = await Promise.all([
     probeLivePage(channelId),
     readFeed(channelId),
@@ -228,12 +235,17 @@ export async function findLiveVideo({ channelId, apiKey }) {
       ...new Set([livePage?.videoId, ...feed.entries.map((e) => e.id)].filter(Boolean)),
     ];
     try {
-      const video = await confirmViaApi(candidates, apiKey);
+      const videos = await confirmViaApi(candidates, apiKey);
       // The API is authoritative, so when it answers, trust it either way.
-      if (!video) return null;
+      if (!videos.length) return [];
 
-      video.channelAvatar = await fetchChannelAvatar(video.ownerChannelId || channelId, apiKey);
-      return video;
+      // One lookup covers them all, since they share a channel.
+      const avatar = await fetchChannelAvatar(
+        videos[0].ownerChannelId || channelId,
+        apiKey,
+      );
+      for (const video of videos) video.channelAvatar = avatar;
+      return videos;
     } catch (err) {
       // A key can stop working mid stream by running out of quota or being
       // revoked. Announcing a plainer card beats announcing nothing, so drop
@@ -244,12 +256,17 @@ export async function findLiveVideo({ channelId, apiKey }) {
     }
   }
 
+  // The public page only ever reveals one broadcast, so this path cannot see a
+  // second concurrent stream. That is a limitation of the fallback, not a
+  // reason to fail.
   if (livePage?.live) {
-    return normalize({
-      videoId: livePage.videoId,
-      title: livePage.title || feed.entries.find((e) => e.id === livePage.videoId)?.title,
-      channelTitle: livePage.channelTitle || feed.channelTitle,
-    });
+    return [
+      normalize({
+        videoId: livePage.videoId,
+        title: livePage.title || feed.entries.find((e) => e.id === livePage.videoId)?.title,
+        channelTitle: livePage.channelTitle || feed.channelTitle,
+      }),
+    ];
   }
-  return null;
+  return [];
 }
