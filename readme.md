@@ -308,7 +308,26 @@ tidier.
    so this is where you make it look like your own bot.
 7. Click Copy Webhook URL.
 
-Keep that URL private. Anyone who has it can post in that channel.
+Keep that URL private. Anyone who has it can post in that channel. Never put it
+in a message, a screenshot, or a public file. If it does get out, delete the
+webhook and make another, which takes seconds and breaks nothing else.
+
+### Check the webhook works
+
+Paste your URL into this command in place of YOUR_WEBHOOK_URL and run it. It
+posts a short message you can delete afterwards.
+
+```
+node -e "fetch('YOUR_WEBHOOK_URL',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({content:'Webhook test. You can delete this message.'})}).then(r=>console.log(r.ok?'WORKS, check your Discord channel':('FAILED: HTTP '+r.status)))"
+```
+
+If it fails:
+
+| Result | What it means |
+| --- | --- |
+| HTTP 404, Unknown Webhook | The URL is wrong, or the webhook was deleted. Copy it again. |
+| HTTP 401, or 403 | The token part at the end is incomplete. Copy the whole URL. |
+| Nothing appears in Discord | It posted to a different channel. Check the webhook's channel setting. |
 
 ## 4. Step 2, find your YouTube channel ID
 
@@ -331,22 +350,112 @@ The key does three things. It makes the live check reliable, and it supplies
 the two parts of the card that the public page does not expose, which are your
 channel picture and the stream description.
 
-1. Go to console.cloud.google.com and sign in.
-2. Create a new project, any name works.
-3. In the search bar type YouTube Data API v3, open it, and click Enable.
-4. Go to Credentials, click Create Credentials, then API key.
-5. Copy the key.
+Google's console is aimed at developers and is easy to get lost in, so each
+step below has a direct link that takes you straight to the right page. Sign in
+with any Google account first.
 
-Each check costs about 2 units out of a free daily allowance of 10000 units, so
-checking every minute still stays well inside the free limit. Announcing costs
-one extra unit, for fetching your channel picture.
+You will not be asked for card details at any point. If a page ever asks you to
+start a free trial or enable billing, you have wandered onto the wrong screen.
+Nothing here needs it.
 
-You do not need to enter card details, and there is no paid tier to fall into.
+### Step 1, create a project
 
-If your key ever stops working, by being deleted or by running out of quota,
-the service does not go silent. It falls back to reading the public page, so
-you still get announced, just without the picture and the description. Fix the
-key and the full card returns by itself.
+Open this:
+
+```
+https://console.cloud.google.com/projectcreate
+```
+
+Type any name, for example live-announcer, and click Create. Leave Location as
+No organisation. Wait a few seconds for it to finish.
+
+### Step 2, turn on the YouTube Data API
+
+Open this:
+
+```
+https://console.cloud.google.com/apis/library/youtube.googleapis.com
+```
+
+Before clicking anything, look at the project name in the blue bar at the top.
+If it is not the project you just made, click it and pick yours. Enabling the
+API on the wrong project is the most common thing to get wrong here.
+
+Then click Enable and wait for it to finish.
+
+### Step 3, create the key
+
+Open this:
+
+```
+https://console.cloud.google.com/apis/credentials
+```
+
+Click Create Credentials at the top, then API key. A box appears with your new
+key in it. It starts with the letters AIza.
+
+Copy it now. You can always come back and read it again from this page.
+
+### Step 4, restrict the key
+
+This screen confuses almost everyone, so here are the exact answers. Click Edit
+API key, or click the key's name in the list.
+
+| Setting | What to choose |
+| --- | --- |
+| Application restrictions | None |
+| API restrictions | Restrict key, then tick YouTube Data API v3 |
+| Authenticate API calls through a service account | Leave it off |
+
+Application restrictions must be None, and that is not laziness. The other
+choices do not fit this project:
+
+* Websites only works for keys used by JavaScript in a browser, where a
+  referrer header exists. This runs on a server, so every call would be
+  refused.
+* IP addresses sounds ideal, but free hosting does not give you a fixed
+  outgoing address, and it changes without warning. Your announcer would stop
+  working for no visible reason.
+* Android and iOS do not apply.
+
+The API restriction is the one that actually protects you. With it set, a
+leaked key can only read public YouTube data. It cannot touch your Google
+account, your channel, or anything else, and it cannot run up a bill because
+there is no billing on the project.
+
+Click Save. A new restriction can take a minute or two to take effect.
+
+### Step 5, check the key works
+
+Paste your key into this command in place of YOUR_KEY and run it. It looks up
+one well known public video.
+
+```
+node -e "fetch('https://www.googleapis.com/youtube/v3/videos?part=snippet&id=aqz-KE-bpKQ&key=YOUR_KEY').then(r=>r.json()).then(d=>console.log(d.error?('FAILED: '+d.error.message):('WORKS, found: '+d.items[0].snippet.title)))"
+```
+
+Seeing WORKS means you are done. Put the key on the YT_API_KEY line of your
+.env file, or into Environment Variables on Render.
+
+If it fails, the message tells you which of these it is:
+
+| Message contains | What it means |
+| --- | --- |
+| API key not valid | The key was mistyped, or you copied only part of it |
+| has not been used in project, or it is disabled | Step 2 was done on a different project, or skipped |
+| requests to this API are blocked | Your API restriction does not include YouTube Data API v3 |
+| referer, or referrer | Application restrictions is set to Websites. Set it to None |
+
+### What it costs you
+
+Nothing. Each check uses about 1 unit of a free daily allowance of 10000, so
+even checking every minute uses under 1500 a day. Announcing costs 1 more, for
+fetching your channel picture. One key comfortably covers about 30 channels.
+
+If your key ever stops working, by being deleted or running out of quota, the
+service does not go silent. It falls back to reading the public page, so you
+are still announced, just without the picture and the description. Fix the key
+and the full card returns by itself.
 
 ## 6. Step 4, run it on your own computer
 
@@ -425,11 +534,44 @@ This project includes render.yaml, which lists the settings for you.
    CRON_SECRET is generated for you, and you can read it afterwards from the
    Environment tab.
 
+### Direct links, to skip the menus
+
+```
+Sign up               https://dashboard.render.com/register
+New web service       https://dashboard.render.com/select-repo?type=web
+Your dashboard        https://dashboard.render.com
+```
+
+Sign up with GitHub rather than email. Render then sees your repositories
+straight away, and you avoid connecting the two accounts as a separate step
+later.
+
+### The exact settings
+
+Render fills most of these in by reading the project. Check them rather than
+retype them.
+
+| Field | Value | If it is wrong |
+| --- | --- | --- |
+| Language, or Runtime | Node | The build fails immediately |
+| Branch | main | It deploys nothing, or old code |
+| Root Directory | leave empty | Build cannot find package.json |
+| Build Command | npm install | Build fails, or express is missing at start |
+| Start Command | npm start | Deploy succeeds but the service never answers |
+| Instance Type | Free | You get charged |
+| Region | whichever is nearest you | Only affects speed, nothing breaks |
+
+Instance Type is the one to check twice. Render often preselects a paid tier,
+and it is easy to click past.
+
 ### Things worth knowing
 
 Never upload your .env file. Render stores these values for you, and .env is
 excluded from the repository on purpose, so your webhook and key never become
 public. See section 12.
+
+Environment Variables are set once and kept. Changing one restarts the service
+by itself, so there is no separate deploy needed after an edit.
 
 Auto deploy is on by default, meaning Render rebuilds every time you push to
 your fork. That is convenient, though it also means a broken commit stops your
@@ -445,15 +587,52 @@ dependency is cached.
 
 ### Checking it worked
 
-Open your address in a browser. You should get a short reply naming the
-service. Then open the same address with /status and your key on the end:
+Three checks, in order. Each one proves more than the last.
 
-```
-https://yourname.onrender.com/status?key=YOUR_CRON_SECRET
-```
+1. Open your address in a browser:
 
-That page shows the channel it is watching and when it last checked, which
-confirms the whole chain is wired up correctly.
+   ```
+   https://yourname.onrender.com
+   ```
+
+   You should see a short reply naming the service. This proves it is running
+   and awake.
+
+2. Add /status and your key:
+
+   ```
+   https://yourname.onrender.com/status?key=YOUR_CRON_SECRET
+   ```
+
+   This shows the channel it is watching, whether it is using your API key, and
+   when it last checked. Confirm watching shows your own channel ID, and that
+   lastCheckAt is a time from the last few minutes.
+
+3. Open the Logs tab on Render. You want to see, near the top:
+
+   ```
+   [server] listening on
+   [server] YouTube API key configured
+   [server] checking every 300s
+   [keepalive] pinging ... every 600s
+   [youtube] watching channel UC...
+   ```
+
+   Those five lines together mean everything is wired up. If the API key line
+   says not set, your environment variable did not save.
+
+### When something goes wrong
+
+| What you see | Cause and fix |
+| --- | --- |
+| Build failed, cannot find package.json | Root Directory is set. Clear it. |
+| Deploy succeeded but the address does not answer | Start Command is not npm start |
+| Log says Configuration problems, then stops | An environment variable is missing. The message names it. |
+| Log says YT_API_KEY is not set | The variable did not save, or was typed with a different name |
+| /status returns 401 | The key in the URL does not match CRON_SECRET |
+| /status returns 503 | CRON_SECRET was never set on Render |
+| Log shows API check failed, falling back | Your key is wrong or restricted. See section 5, step 5. |
+| Works, then stops answering after a while | Free instance slept. Check the keepalive line appears in the log. |
 
 ## 8. Step 6, the cron ping
 
