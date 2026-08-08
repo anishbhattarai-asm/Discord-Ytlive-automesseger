@@ -126,28 +126,69 @@ npm run check
 
 ### The easy way to put it online
 
-If you want the shortest path, this is the whole thing.
+Your own computer cannot stay switched on all day, so the project needs to live
+somewhere that is always running. Render is a hosting site that does this for
+free, and it is what the rest of this guide assumes. You do not need to know
+anything about it in advance. Every click is written out below.
 
-1. Make a Discord webhook and copy its URL. See section 3.
-2. Find your YouTube channel ID. See section 4.
-3. Deploy this project on Render. See section 7.
-4. On Render, open Environment Variables and add these four:
-
-   ```
-   DISCORD_WEBHOOK_URL    the URL you copied from Discord
-   YT_CHANNEL_ID          your channel ID, or use @yourhandle
-   YT_API_KEY             optional, leave it out if you prefer
-   CRON_SECRET            a long random string, see below
-   ```
-
-5. That is it. Go live and the message appears.
-
-Generate the secret by running this on your computer, then paste the result
-into Render and keep a copy for yourself:
+First, get the secret you will need in step 12. Run this on your computer and
+copy the long line it prints, and keep a copy somewhere safe:
 
 ```
 node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"
 ```
+
+Now the full run through.
+
+1. Make a Discord webhook and copy its URL. See section 3 if you have not yet.
+2. Find your YouTube channel ID. See section 4 if you have not yet.
+3. Open github.com and sign in, or create a free account.
+4. Open the project page:
+
+   ```
+   https://github.com/anishbhattarai-asm/Discord-Ytlive-automesseger
+   ```
+
+5. Click Fork near the top right, then Create fork. This puts your own copy of
+   the project on your account, which is what Render will read from.
+6. Go to render.com and click Get Started.
+7. Choose GitHub as the way to sign in, and allow Render to see your account
+   when it asks. A Render account is free and needs no card.
+8. On your Render dashboard click New, then choose Web Service.
+9. Pick Build and deploy from a Git repository, then find your forked copy in
+   the list and click Connect. If it is not listed, click the option to
+   configure your GitHub account and give Render permission to see it.
+10. Render reads the project and fills most of this in by itself. Check that it
+    says:
+
+    | Field | Value |
+    | --- | --- |
+    | Language or Runtime | Node |
+    | Branch | main |
+    | Build Command | npm install |
+    | Start Command | npm start |
+
+11. Under Instance Type, choose Free.
+12. Scroll down to Environment Variables. Click Add Environment Variable once
+    per line below, putting the name on the left and your value on the right:
+
+    ```
+    DISCORD_WEBHOOK_URL    the URL you copied from Discord
+    YT_CHANNEL_ID          your channel ID, or use @yourhandle
+    YT_API_KEY             optional, leave this one out if you prefer
+    CRON_SECRET            the long random line you generated above
+    ```
+
+13. Click Deploy Web Service at the bottom, then wait. The first build takes a
+    few minutes.
+14. Watch the Logs tab. When it prints `[server] listening on` it is running.
+15. Your address is at the top of the page, and looks like
+    https://something.onrender.com
+
+That is it. Go live on YouTube and the message appears in Discord.
+
+Render changes its wording from time to time, so a button may be named slightly
+differently to the above. The order of the steps stays the same.
 
 You do not need any of the following, whatever you may have read elsewhere:
 
@@ -325,36 +366,51 @@ Do this first to confirm everything works before putting it online.
 
 Your computer cannot stay on all day, so host it for free on Render.
 
-1. Push this project to your own GitHub repository, or fork this one.
-2. Go to render.com and sign up, then connect your GitHub account.
-3. Click New, then Web Service, and pick your repository.
-4. Fill in the settings:
+The click by click walkthrough is in The easy way to put it online, near the top
+of this file. It covers making a GitHub account, forking, signing up to Render,
+and filling in the settings. This section is the extra detail around it.
 
-   | Field | Value |
-   | --- | --- |
-   | Runtime | Node |
-   | Build Command | npm install |
-   | Start Command | npm start |
-   | Instance Type | Free |
+### The shorter route, using the blueprint
 
-5. Scroll to Environment Variables and add each of these:
+This project includes render.yaml, which lists the settings for you.
 
-   ```
-   DISCORD_WEBHOOK_URL    your webhook URL
-   YT_CHANNEL_ID          your channel ID
-   YT_API_KEY             your API key, or leave it out
-   CRON_SECRET            any random text you invent
-   ```
+1. On Render click New, then Blueprint.
+2. Pick your forked copy of this project.
+3. Render reads render.yaml and fills in the build command, the start command
+   and the defaults, so you only supply the values it cannot guess.
+4. Fill in DISCORD_WEBHOOK_URL, YT_CHANNEL_ID and YT_API_KEY when asked.
+   CRON_SECRET is generated for you, and you can read it afterwards from the
+   Environment tab.
 
-   Do not upload your .env file. Render keeps these values for you, and .env is
-   deliberately excluded from the repository so your secrets never go public.
+### Things worth knowing
 
-6. Click Create Web Service and wait for the log to print `listening on`.
-7. Copy your service address from the top of the page. It looks like
-   https://yourname.onrender.com
+Never upload your .env file. Render stores these values for you, and .env is
+excluded from the repository on purpose, so your webhook and key never become
+public. See section 12.
 
-This project also includes render.yaml, so you can instead choose Blueprint on
-Render and it will fill in the build and start commands for you.
+Auto deploy is on by default, meaning Render rebuilds every time you push to
+your fork. That is convenient, though it also means a broken commit stops your
+announcer until you fix it. You can switch it off under Settings if you prefer
+to deploy by hand.
+
+The free instance sleeps when nothing is talking to it. The service already
+handles this by pinging itself, so there is nothing for you to configure. See
+section 8 if you want the detail.
+
+Your first deploy takes a few minutes. Later ones are faster, because the
+dependency is cached.
+
+### Checking it worked
+
+Open your address in a browser. You should get a short reply naming the
+service. Then open the same address with /status and your key on the end:
+
+```
+https://yourname.onrender.com/status?key=YOUR_CRON_SECRET
+```
+
+That page shows the channel it is watching and when it last checked, which
+confirms the whole chain is wired up correctly.
 
 ## 8. Step 6, the cron ping
 
