@@ -33,6 +33,43 @@ The only reasons you would ever open it again:
 
 Each of those is a single value to update, and nothing else changes.
 
+## The easy way
+
+If you want the shortest path, this is the whole thing.
+
+1. Make a Discord webhook and copy its URL. See section 3.
+2. Find your YouTube channel ID. See section 4.
+3. Deploy this project on Render. See section 7.
+4. On Render, open Environment Variables and add these four:
+
+   ```
+   DISCORD_WEBHOOK_URL    the URL you copied from Discord
+   YT_CHANNEL_ID          your channel ID, or use @yourhandle
+   YT_API_KEY             optional, leave it out if you prefer
+   CRON_SECRET            a long random string, see below
+   ```
+
+5. That is it. Go live and the message appears.
+
+Generate the secret by running this on your computer, then paste the result
+into Render and keep a copy for yourself:
+
+```
+node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"
+```
+
+You do not need any of the following, whatever you may have read elsewhere:
+
+* No cron account. The service runs its own timer.
+* No GitHub secrets. Those are only for the optional backup in section 8.
+* No Discord bot, no bot token, no permissions to configure.
+* No database.
+* No API key, strictly speaking. It works without one and is steadier with one.
+
+Everything after this point in the guide is optional detail. Read it when you
+want to change the message, add a backup timer, or work out why something is
+not behaving.
+
 ## Contents
 
 1. What you need before you start
@@ -231,6 +268,35 @@ Render and it will fill in the build and start commands for you.
 
 **You can skip this whole step.** It is automatic now. Read on only if you want
 a second scheduler as a backup.
+
+### Which timer am I using?
+
+The timer is inside the service itself, running on your host. It is switched on
+by default and needs nothing from you.
+
+GitHub Actions and cron-job.org are alternatives you may add on top. They do not
+replace the internal timer, they only prod it from outside as insurance. Use at
+most one of them, or none.
+
+### Where each value goes
+
+Two different places store values, and mixing them up is the usual cause of a
+401. This table shows what goes where.
+
+| Value | Render, Environment Variables | GitHub, repository secrets | cron-job.org |
+| --- | --- | --- | --- |
+| DISCORD_WEBHOOK_URL | yes, required | no | no |
+| YT_CHANNEL_ID | yes, required | no | no |
+| YT_API_KEY | yes, if you have one | no | no |
+| CRON_SECRET | yes | only for Option A | goes in the URL |
+| SERVICE_URL | no, Render knows it | only for Option A | goes in the URL |
+
+The running service never reads your GitHub secrets. Render runs the app, and
+GitHub only calls it from the outside, so CRON_SECRET has to be written
+identically in both places or the call is refused.
+
+cron-job.org has no secrets panel at all. The key simply forms part of the
+address you paste into it.
 
 ### What already runs on its own
 
