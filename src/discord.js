@@ -1,5 +1,17 @@
 const MAX_CONTENT = 2000;
 
+// Discord's API requires a User-Agent, and Cloudflare, which sits in front of
+// it, is far stricter with a datacenter address than with a home connection.
+// A webhook that works from a laptop can be answered with 429 from a free
+// host purely for arriving with no User-Agent at all.
+const USER_AGENT =
+  "DiscordBot (https://github.com/anishbhattarai-asm/Discord-Ytlive-automesseger, 1.0.0)";
+
+// Total time to spend riding out a 429 before giving up. A block measured in
+// minutes is worth waiting for, since the alternative is losing the
+// announcement for a whole poll interval, and possibly for the whole stream.
+const MAX_RETRY_WAIT_MS = 60_000;
+
 /** Fill {placeholders} in the user's MESSAGE_TEMPLATE. */
 export function renderTemplate(template, video) {
   const values = {
@@ -95,10 +107,13 @@ function truncate(text, limit) {
 export async function sendToDiscord(webhookUrl, payload) {
   const url = `${webhookUrl}${webhookUrl.includes("?") ? "&" : "?"}wait=true`;
 
-  for (let attempt = 0; attempt < 3; attempt++) {
+  let waitedMs = 0;
+  let lastLimit = "";
+
+  for (let attempt = 0; ; attempt++) {
     const res = await fetch(url, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "user-agent": USER_AGENT },
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(12_000),
     });
@@ -106,8 +121,38 @@ export async function sendToDiscord(webhookUrl, payload) {
     if (res.ok) return await res.json().catch(() => ({}));
 
     if (res.status === 429) {
-      const info = await res.json().catch(() => ({}));
-      const waitMs = Math.min(Math.ceil((info.retry_after ?? 1) * 1000), 10_000);
+      // Read the body as text first. Discord's own limiter answers with JSON
+      // carrying retry_after, while a Cloudflare block answers with an HTML
+      // page, and only text survives both without throwing.
+      const body = await res.text().catch(() => "");
+      let retryAfter = null;
+      try {
+        retryAfter = JSON.parse(body).retry_after ?? null;
+      } catch {
+        // Not JSON, so this is not Discord's own rate limiter talking.
+      }
+
+      const blockedByCloudflare = /cloudflare|error code: 1015/i.test(body);
+      lastLimit =
+        `retry_after=${retryAfter ?? "none"}` +
+        (blockedByCloudflare ? ", blocked by Cloudflare rather than Discord" : "");
+
+      // Say this out loud. Without it the only evidence is a generic failure
+      // after the retries run out, which cannot distinguish a throttled
+      // webhook from a host whose IP address is being refused outright.
+      console.warn(
+        `[discord] rate limited (${lastLimit}): ${body.slice(0, 200).replace(/\s+/g, " ")}`,
+      );
+
+      // Cloudflare sends no retry_after, so widen the wait each time instead
+      // of retrying into the same closed door three times in a row.
+      const waitMs =
+        retryAfter != null
+          ? Math.ceil(retryAfter * 1000)
+          : Math.min(2000 * 2 ** attempt, 20_000);
+
+      if (waitedMs + waitMs > MAX_RETRY_WAIT_MS) break;
+      waitedMs += waitMs;
       await new Promise((r) => setTimeout(r, waitMs));
       continue;
     }
@@ -138,5 +183,9 @@ export async function sendToDiscord(webhookUrl, payload) {
     throw new Error(`Discord webhook failed: ${res.status} ${text.slice(0, 300)}`);
   }
 
-  throw new Error("Discord webhook failed: still failing after 3 attempts");
+  throw new Error(
+    `Discord kept rate limiting this host for over ${Math.round(MAX_RETRY_WAIT_MS / 1000)}s ` +
+      `(${lastLimit}). The webhook itself is probably fine, since this is about where the ` +
+      "request comes from. Free hosts share outgoing addresses, so this can clear on its own.",
+  );
 }
