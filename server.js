@@ -1,3 +1,7 @@
+// First, so the version check runs before express or anything else is
+// evaluated. Its message is useless if a dependency throws first.
+import "./src/node-version.js";
+
 import express from "express";
 
 import { Announcer } from "./src/announcer.js";

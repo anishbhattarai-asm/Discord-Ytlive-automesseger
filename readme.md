@@ -102,7 +102,9 @@ check it worked:
 node --version
 ```
 
-Anything from v20 upward is fine.
+Anything from v20 upward is fine. If it prints something older, you already had
+Node installed and the command above will often leave that old copy in place.
+Section 1 has the update commands.
 
 You also want git, which is how you download the project. On Windows:
 
@@ -272,6 +274,28 @@ node --version
 If it prints something like v20.11.0 or higher you are ready. If it says the
 command is not found, install Node.js with the one line command in the Fast way
 section above.
+
+### If Node is already installed but too old
+
+If that command printed v19 or lower, update before going any further. The
+install commands in the Fast way section often report that Node is already
+present and change nothing, so use the update command instead:
+
+| System | Command |
+| --- | --- |
+| Windows | `winget upgrade OpenJS.NodeJS.LTS` |
+| Mac, with Homebrew | `brew upgrade node` |
+| Ubuntu or Debian | The two NodeSource lines in the Fast way section, which replace the old version rather than adding to it |
+
+On Windows, if winget answers that no applicable upgrade was found, your old
+copy came from the installer on nodejs.org rather than from winget. Download the
+current LTS from nodejs.org and run it, which replaces the old version in place.
+
+Afterwards close the terminal, open a new one, and run `node --version` again to
+confirm it changed. An old version is worth ruling out early, because it does
+not announce itself: `npm install` still succeeds, the server still starts and
+says it is listening, and the failure only arrives at the first check, as an
+error about fetch not being defined.
 
 ## 2. Which modules get installed
 
