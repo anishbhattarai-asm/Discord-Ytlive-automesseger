@@ -1019,8 +1019,34 @@ daily quota being used up. Announcements keep working meanwhile.
 **Nothing is posted when I go live.**
 Open /status with your key on the end. It shows lastCheckAt, lastResult and
 lastError. If lastCheckAt is old the service is asleep or stopped. If live is
-false while you are actually live, wait a minute, since YouTube can take a
-short time to mark a stream public.
+false while you are actually live, check the stream is **public**. An unlisted
+or private stream is invisible to this project, exactly as it is to a stranger,
+and it will sit at live false forever. Open
+`https://www.youtube.com/channel/YOUR_UC_ID/live` in a private browser window:
+that is the precise page the check reads, so if your stream does not appear
+there, nothing on the hosting side can help. If it is public and still false,
+wait a minute, since YouTube takes a short time to mark a stream live.
+
+**The log says blocked by Cloudflare.**
+Discord sits behind Cloudflare, which decides whether to answer based on the
+address a request comes from. Free hosting gives you an address shared with
+strangers, and if any of them upset Discord today, your announcement is refused
+along with theirs. The webhook is fine, and you can prove it by running the
+webhook test from section 3 on your own computer, which will work while the
+host is refused.
+
+The log names the code, which tells you what to do:
+
+| Code | Meaning | What to do |
+| --- | --- | --- |
+| 1015 | A rate limit, which expires by itself | Nothing. Each check tries again, and nothing is marked announced until a send succeeds, so the message still arrives once the block lifts. |
+| 1020, 1010, 1006 | A refusal aimed at that address | Waiting cannot fix it. The request has to come from somewhere else. |
+
+For the second kind, in order of effort: recreate the service in a different
+Render region, which gives a different pool of outgoing addresses and costs
+nothing to try; or deploy the same project to another free host such as Fly.io
+or Koyeb. Render cannot change the region of an existing service, so this means
+creating a new one from the blueprint and entering the three values again.
 
 **It posted twice.**
 This normally means the service redeployed between the two checks. Open /state

@@ -115,23 +115,35 @@ const CLOUDFLARE_CODES = {
   1006: "this IP address is banned",
 };
 
-function describeLimit(body, retryAfter, ray) {
-  if (retryAfter != null) return `Discord's own limiter, retry_after=${retryAfter}s`;
+// Codes that describe a decision about this address rather than a burst of
+// traffic. Sitting through the backoff for these only delays the poll, since
+// the answer is the same every time until the address itself changes.
+const PERMANENT_CODES = new Set(["1020", "1010", "1006"]);
+
+function classifyLimit(body, retryAfter, ray) {
+  if (retryAfter != null) {
+    return { text: `Discord's own limiter, retry_after=${retryAfter}s`, permanent: false };
+  }
 
   const code = body.match(/error code:?\s*(\d{4})/i)?.[1];
   const title = body.match(/<title>([^<]{0,80})<\/title>/i)?.[1]?.trim();
 
   if (!code && !/cloudflare/i.test(body)) {
-    return `no retry_after, unrecognised body: ${body.slice(0, 120).replace(/\s+/g, " ")}`;
+    return {
+      text: `no retry_after, unrecognised body: ${body.slice(0, 120).replace(/\s+/g, " ")}`,
+      permanent: false,
+    };
   }
 
-  return (
-    `Cloudflare${code ? ` error ${code}` : ""}` +
-    `${code && CLOUDFLARE_CODES[code] ? ` (${CLOUDFLARE_CODES[code]})` : ""}` +
-    `${title ? `, page says "${title}"` : ""}` +
-    `${ray ? `, ray ${ray}` : ""}` +
-    ". This is about the address the request comes from, not the webhook."
-  );
+  return {
+    text:
+      `Cloudflare${code ? ` error ${code}` : ""}` +
+      `${code && CLOUDFLARE_CODES[code] ? ` (${CLOUDFLARE_CODES[code]})` : ""}` +
+      `${title ? `, page says "${title}"` : ""}` +
+      `${ray ? `, ray ${ray}` : ""}` +
+      ". This is about the address the request comes from, not the webhook.",
+    permanent: PERMANENT_CODES.has(code),
+  };
 }
 
 export async function sendToDiscord(webhookUrl, payload) {
@@ -139,6 +151,7 @@ export async function sendToDiscord(webhookUrl, payload) {
 
   let waitedMs = 0;
   let lastLimit = "";
+  let permanentlyBlocked = false;
 
   for (let attempt = 0; ; attempt++) {
     const res = await fetch(url, {
@@ -162,12 +175,20 @@ export async function sendToDiscord(webhookUrl, payload) {
         // Not JSON, so this is not Discord's own rate limiter talking.
       }
 
-      lastLimit = describeLimit(body, retryAfter, res.headers.get("cf-ray"));
+      const limit = classifyLimit(body, retryAfter, res.headers.get("cf-ray"));
+      lastLimit = limit.text;
+      permanentlyBlocked = limit.permanent;
 
       // Say this out loud. Without it the only evidence is a generic failure
       // after the retries run out, which cannot distinguish a throttled
       // webhook from a host whose IP address is being refused outright.
       console.warn(`[discord] rate limited: ${lastLimit}`);
+
+      // A refusal aimed at this address answers the same way however long the
+      // wait, so stop now and let the next poll try. The announcement is not
+      // lost by giving up here, since nothing is marked announced until a send
+      // actually succeeds.
+      if (permanentlyBlocked) break;
 
       // Cloudflare sends no retry_after, so widen the wait each time instead
       // of retrying into the same closed door three times in a row.
@@ -208,9 +229,18 @@ export async function sendToDiscord(webhookUrl, payload) {
     throw new Error(`Discord webhook failed: ${res.status} ${text.slice(0, 300)}`);
   }
 
+  if (permanentlyBlocked) {
+    throw new Error(
+      `Discord is refusing this host outright (${lastLimit}) Waiting will not help. The ` +
+        "request has to come from a different address: move the service to another region " +
+        "or another host. See section 13 of the readme.",
+    );
+  }
+
   throw new Error(
     `Discord kept rate limiting this host for over ${Math.round(MAX_RETRY_WAIT_MS / 1000)}s ` +
-      `(${lastLimit}). The webhook itself is probably fine, since this is about where the ` +
-      "request comes from. Free hosts share outgoing addresses, so this can clear on its own.",
+      `(${lastLimit}) The webhook itself is probably fine, since this is about where the ` +
+      "request comes from. Free hosts share outgoing addresses, so this usually clears on " +
+      "its own, and the next check will try again.",
   );
 }
