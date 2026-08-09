@@ -33,6 +33,33 @@ The only reasons you would ever open it again:
 
 Each of those is a single value to update, and nothing else changes.
 
+## Accounts you need
+
+Two new signups, GitHub and Render. Four accounts are involved in total, but you
+almost certainly have the other two already.
+
+| Account | Do you have it? | What it is for | Cost |
+| --- | --- | --- | --- |
+| GitHub | Probably not | Holds your copy of the project, which is what Render reads from | Free |
+| Render | Probably not | The hosting that keeps it running when your computer is off | Free, no card |
+| Google | Yes, if you have a YouTube channel | The YouTube API key. Not a new account, you create a free project inside the one you already use | Free |
+| Discord | Yes, if you are announcing to a Discord server | The webhook that posts the message | Free |
+
+You can sign in to Render with your GitHub account, so in practice it is one set
+of login details rather than two.
+
+None of the four asks for a payment card at any point.
+
+**What is genuinely new work, and what is not.** Google and Discord are accounts
+you already own, but you still have a few clicks to do inside each of them:
+making a Cloud project and enabling the API in section 5, and making a webhook
+in section 3. Of the whole setup, the API key is the part people most often get
+stuck on, so section 5 writes out every screen, including the two that catch
+almost everyone.
+
+**Not needed, despite what other guides say:** no cron or scheduler account, no
+Discord bot or bot token, no database, and no paid tier anywhere.
+
 ## Fast way
 
 Everything here can be done from a terminal. No websites to browse, no
@@ -221,16 +248,22 @@ not behaving.
 
 ## 1. What you need before you start
 
+For the accounts, see Accounts you need above. The short version is two new
+signups, GitHub and Render, plus the Google and Discord accounts you already
+have. Nothing here costs anything or asks for a card.
+
 | Requirement | Notes |
 | --- | --- |
-| Node.js version 20 or newer | Free. Install it with one command, see the Fast way section above. Installing Node also installs npm. |
 | A Discord server | Free, and section 3 shows how to make one if you do not have any. Creating it makes you the owner, which grants the permission this needs. |
 | A YouTube channel | The one you go live on. |
-| A GitHub account | Only if you want to host it online. |
-| A YouTube Data API key | Required, and free. See section 5. |
+| A YouTube Data API key | Required, and free. Made inside the Google account that channel belongs to. See section 5. |
+| A GitHub account | Free. Needed to host it online, which is how most people run this. |
+| A Render account | Free, no card, and you can sign in with GitHub. Only if you want to host it online. |
+| Node.js version 20 or newer | Only if you want to test it on your own computer first. The fork and deploy route in the Fast way never opens a terminal. Free, and installing Node also installs npm. |
 
-To check whether Node is already installed, open a terminal (Command Prompt or
-PowerShell on Windows, Terminal on Mac) and run:
+If you are testing on your own computer, check whether Node is already
+installed. Open a terminal (Command Prompt or PowerShell on Windows, Terminal on
+Mac) and run:
 
 ```
 node --version
