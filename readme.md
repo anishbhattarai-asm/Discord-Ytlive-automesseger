@@ -616,10 +616,16 @@ retype them.
 | Build Command | npm install | Build fails, or express is missing at start |
 | Start Command | npm start | Deploy succeeds but the service never answers |
 | Instance Type | Free | You get charged |
-| Region | whichever is nearest you | Only affects speed, nothing breaks |
+| Region | Singapore, or anything except Oregon | Every announcement fails, and section 13 explains why |
 
 Instance Type is the one to check twice. Render often preselects a paid tier,
 and it is easy to click past.
+
+Region matters more than it looks, and not for speed. Discord refuses requests
+from Render's Oregon addresses, so a service there detects your stream, builds
+the message, and then fails at the last step every single time. The blueprint
+route sets Singapore for you and you can ignore this. It only needs your
+attention if you create the service by hand, where Render offers Oregon first.
 
 ### Things worth knowing
 
@@ -1047,7 +1053,7 @@ The log names the code, which tells you what to do:
 
 | Code | Meaning | What to do |
 | --- | --- | --- |
-| 1015 | A rate limit, which expires by itself | Nothing. Each check tries again, and nothing is marked announced until a send succeeds, so the message still arrives once the block lifts. |
+| 1015 | Documented as a rate limit, and from a home connection it does pass in minutes. From a hosting provider Discord uses it as a standing refusal, and the page then reads "Access denied" rather than anything about slowing down. | Do not wait it out. Change the region, below. |
 | 1020, 1010, 1006 | A refusal aimed at that address | Waiting cannot fix it. The request has to come from somewhere else. |
 
 The fix for either kind is the same, because both are about the address: make
