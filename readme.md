@@ -7,6 +7,12 @@ checker runs every few minutes. The message text is yours to edit.
 
 You do not need to create a Discord bot, and you do not need a database.
 
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/anishbhattarai-asm/Discord-Ytlive-automesseger)
+
+That deploys your own free copy. You supply three values, everything else is
+already decided. The walkthrough is in [The easy way to put it
+online](#the-easy-way-to-put-it-online).
+
 ## This is a one time setup
 
 You set it up once, in about 15 minutes, and then you never touch it again.
@@ -35,20 +41,21 @@ Each of those is a single value to update, and nothing else changes.
 
 ## Accounts you need
 
-Two new signups, GitHub and Render. Four accounts are involved in total, but you
-almost certainly have the other two already.
+One new signup, Render. Three accounts are involved in total, and you almost
+certainly have the other two already. GitHub is optional, and only worth having
+if you want your own copy of the project to edit.
 
 | Account | Do you have it? | What it is for | Cost |
 | --- | --- | --- | --- |
-| GitHub | Probably not | Holds your copy of the project, which is what Render reads from | Free |
+| GitHub | Optional | Only for keeping your own copy of the project to edit. The Deploy to Render button needs no GitHub account | Free |
 | Render | Probably not | The hosting that keeps it running when your computer is off | Free, no card |
 | Google | Yes, if you have a YouTube channel | The YouTube API key. Not a new account, you create a free project inside the one you already use | Free |
 | Discord | Yes, if you are announcing to a Discord server | The webhook that posts the message | Free |
 
-You can sign in to Render with your GitHub account, so in practice it is one set
-of login details rather than two.
+If you do make a GitHub account, you can sign in to Render with it, so it stays
+one set of login details rather than two.
 
-None of the four asks for a payment card at any point.
+None of them asks for a payment card at any point.
 
 **What is genuinely new work, and what is not.** Google and Discord are accounts
 you already own, but you still have a few clicks to do inside each of them:
@@ -160,64 +167,57 @@ somewhere that is always running. Render is a hosting site that does this for
 free, and it is what the rest of this guide assumes. You do not need to know
 anything about it in advance. Every click is written out below.
 
-First, get the secret you will need in step 12. Run this on your computer and
-copy the long line it prints, and keep a copy somewhere safe:
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/anishbhattarai-asm/Discord-Ytlive-automesseger)
+
+That button opens Render with this project already selected. Render then reads
+render.yaml from it, which sets the region, the free plan, and the two commands
+that start it, so the only thing left to type is the three values that nobody
+but you can know.
+
+Before you click, have these ready. Sections 3, 4 and 5 explain each one:
+
+* your Discord webhook URL
+* your YouTube channel, as a UC id or an @handle
+* your YouTube API key
+
+Then:
+
+1. Click the button above.
+2. Sign in to Render, or create the account there and then. It is free and
+   never asks for a card. Either an email address or a GitHub account works.
+3. Give it any name you like.
+4. Fill in the three values it asks for. It does not ask for CRON_SECRET,
+   because it makes one for you.
+5. Click the button at the bottom to deploy, then wait. The first build takes a
+   few minutes.
+6. Watch the Logs tab. When it prints `[server] listening on` it is running,
+   and your address appears at the top of the page, looking like
+   https://something.onrender.com
+
+Now check it works, without waiting to go live. Open Environment, copy
+CRON_SECRET, and visit this in your browser with that key on the end:
+
+```
+https://something.onrender.com/selftest?key=YOUR_CRON_SECRET
+```
+
+A message appearing in your Discord channel means everything is connected. That
+is the whole setup.
+
+If instead it says unauthorized, your generated key contains one of the
+characters a browser treats specially, which are + and / and =. Replace
+CRON_SECRET on the Environment tab with a plain one and save:
 
 ```
 node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"
 ```
 
-Now the full run through.
-
-1. Make a Discord webhook and copy its URL. See section 3 if you have not yet.
-2. Find your YouTube channel ID. See section 4 if you have not yet.
-3. Open github.com and sign in, or create a free account.
-4. Open the project page:
-
-   ```
-   https://github.com/anishbhattarai-asm/Discord-Ytlive-automesseger
-   ```
-
-5. Click Fork near the top right, then Create fork. This puts your own copy of
-   the project on your account, which is what Render will read from.
-6. Go to render.com and click Get Started.
-7. Choose GitHub as the way to sign in, and allow Render to see your account
-   when it asks. A Render account is free and needs no card.
-8. On your Render dashboard click New, then choose Web Service.
-9. Pick Build and deploy from a Git repository, then find your forked copy in
-   the list and click Connect. If it is not listed, click the option to
-   configure your GitHub account and give Render permission to see it.
-10. Render reads the project and fills most of this in by itself. Check that it
-    says:
-
-    | Field | Value |
-    | --- | --- |
-    | Language or Runtime | Node |
-    | Branch | main |
-    | Build Command | npm install |
-    | Start Command | npm start |
-
-11. Under Instance Type, choose Free.
-12. Scroll down to Environment Variables. Click Add Environment Variable once
-    per line below, putting the name on the left and your value on the right:
-
-    ```
-    DISCORD_WEBHOOK_URL    the URL you copied from Discord
-    YT_CHANNEL_ID          your channel ID, or use @yourhandle
-    YT_API_KEY             your YouTube API key, see section 5
-    CRON_SECRET            the long random line you generated above
-    ```
-
-13. Click Deploy Web Service at the bottom, then wait. The first build takes a
-    few minutes.
-14. Watch the Logs tab. When it prints `[server] listening on` it is running.
-15. Your address is at the top of the page, and looks like
-    https://something.onrender.com
-
-That is it. Go live on YouTube and the message appears in Discord.
-
 Render changes its wording from time to time, so a button may be named slightly
 differently to the above. The order of the steps stays the same.
+
+You do not need a GitHub account of your own for this, and nothing is copied to
+your account. If you would rather have your own copy that you can edit, fork the
+project first and deploy that instead, which section 7 covers.
 
 You do not need any of the following, whatever you may have read elsewhere:
 
@@ -259,9 +259,9 @@ have. Nothing here costs anything or asks for a card.
 | A Discord server | Free, and section 3 shows how to make one if you do not have any. Creating it makes you the owner, which grants the permission this needs. |
 | A YouTube channel | The one you go live on. |
 | A YouTube Data API key | Required, and free. Made inside the Google account that channel belongs to. See section 5. |
-| A GitHub account | Free. Needed to host it online, which is how most people run this. |
+| A GitHub account | Optional. Only needed if you want your own copy to edit. The Deploy to Render button at the top does not use one. |
 | A Render account | Free, no card, and you can sign in with GitHub. Only if you want to host it online. |
-| Node.js version 20 or newer | Only if you want to test it on your own computer first. The fork and deploy route in the Fast way never opens a terminal. Free, and installing Node also installs npm. |
+| Node.js version 20 or newer | Only if you want to test it on your own computer first. The Deploy to Render button never opens a terminal. Free, and installing Node also installs npm. |
 
 If you are testing on your own computer, check whether Node is already
 installed. Open a terminal (Command Prompt or PowerShell on Windows, Terminal on
@@ -576,10 +576,15 @@ Do this first to confirm everything works before putting it online.
 Your computer cannot stay on all day, so host it for free on Render.
 
 The click by click walkthrough is in The easy way to put it online, near the top
-of this file. It covers making a GitHub account, forking, signing up to Render,
-and filling in the settings. This section is the extra detail around it.
+of this file. It covers the Deploy to Render button, signing up to Render, and
+filling in the three values. This section is the extra detail around it.
 
 ### The shorter route, using the blueprint
+
+The shortest route is the Deploy to Render button at the top of this file, which
+needs no GitHub account and no fork. Use the steps below instead when you have
+forked the project because you want to edit the code, since a fork is what lets
+you change the message in the file rather than through a setting.
 
 This project includes render.yaml, which lists the settings for you.
 
