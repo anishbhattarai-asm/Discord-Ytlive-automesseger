@@ -7,6 +7,7 @@ import express from "express";
 import { Announcer } from "./src/announcer.js";
 import { authorize } from "./src/auth.js";
 import { config, configWarnings, validateConfig } from "./src/config.js";
+import { sendToDiscord } from "./src/discord.js";
 import { startKeepAlive } from "./src/keepalive.js";
 import { Store } from "./src/state.js";
 
@@ -67,6 +68,38 @@ app.all("/test", async (req, res) => {
   if (!guard(req, res)) return;
   const result = await announcer.check({ force: true, trigger: "test" });
   res.status(result.ok ? 200 : 500).json(result);
+});
+
+/**
+ * Posts one fixed message, with no YouTube lookup at all.
+ *
+ * Every other route needs a live stream before Discord is ever contacted, so a
+ * silent service leaves you guessing whether nothing is live or the host
+ * cannot reach Discord. Those two have completely different fixes. This
+ * answers that question on its own, at any hour, with nobody streaming.
+ */
+app.all("/selftest", async (req, res) => {
+  if (!guard(req, res)) return;
+
+  const payload = {
+    content:
+      "Self test from the live announcer. Delivery works, and you can delete " +
+      "this message.",
+    allowed_mentions: { parse: [] },
+  };
+  if (config.webhookUsername) payload.username = config.webhookUsername;
+  if (config.webhookAvatarUrl) payload.avatar_url = config.webhookAvatarUrl;
+
+  try {
+    const sent = await sendToDiscord(config.discordWebhookUrl, payload);
+    console.log("[selftest] Discord accepted the message");
+    res.json({ ok: true, delivered: true, messageId: sent?.id ?? null });
+  } catch (err) {
+    console.error(`[selftest] Discord refused the message: ${err.message}`);
+    // 502 rather than 500. The failure is upstream, and saying so keeps this
+    // distinguishable from the service itself being broken.
+    res.status(502).json({ ok: false, delivered: false, error: err.message });
+  }
 });
 
 app.get("/state", (req, res) => {

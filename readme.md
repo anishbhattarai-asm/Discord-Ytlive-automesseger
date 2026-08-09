@@ -931,9 +931,17 @@ GET  /health    uptime check, safe to be public
 GET  /status    what it is watching and what it announced recently
 GET  /cron      run a live check now
 GET  /test      post an announcement now, ignores the one per stream rule
+GET  /selftest  post a plain message, with no YouTube lookup at all
 GET  /state     the stored list of announced streams
 GET  /reset     forget announced streams so they can be announced again
 ```
+
+/selftest exists because every other route needs you to be live before Discord
+is contacted, so silence could mean either nothing is live or the host cannot
+reach Discord, and those have completely different fixes. It answers that on
+its own, at any hour, with nobody streaming. A reply of delivered true means
+the webhook and the host's connection to Discord are both fine, and any
+remaining problem is about detecting the stream.
 
 Everything except / and /health needs your key on the end:
 
