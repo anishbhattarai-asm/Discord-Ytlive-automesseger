@@ -109,7 +109,12 @@ function truncate(text, limit) {
 // pieces that matter are the numbered error code, which says whether this
 // expires, and the Ray ID, which is what Cloudflare support asks for.
 const CLOUDFLARE_CODES = {
-  1015: "rate limited by Cloudflare, temporary and clears on its own",
+  // 1015 is documented as a rate limit, and on a home connection it does pass
+  // in minutes. Against a datacenter address Discord uses it as a standing
+  // refusal, and the page then says "Access denied" rather than anything about
+  // slowing down. Observed unchanged for over an hour from two Render accounts
+  // in the same region, so do not promise it will lift.
+  1015: "refused by Cloudflare, brief on a home connection but often standing for a datacenter address",
   1020: "access denied by a Cloudflare firewall rule, will not clear by waiting",
   1010: "browser signature refused",
   1006: "this IP address is banned",
