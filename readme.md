@@ -1050,11 +1050,23 @@ The log names the code, which tells you what to do:
 | 1015 | A rate limit, which expires by itself | Nothing. Each check tries again, and nothing is marked announced until a send succeeds, so the message still arrives once the block lifts. |
 | 1020, 1010, 1006 | A refusal aimed at that address | Waiting cannot fix it. The request has to come from somewhere else. |
 
-For the second kind, in order of effort: recreate the service in a different
-Render region, which gives a different pool of outgoing addresses and costs
-nothing to try; or deploy the same project to another free host such as Fly.io
-or Koyeb. Render cannot change the region of an existing service, so this means
-creating a new one from the blueprint and entering the three values again.
+The fix for either kind is the same, because both are about the address: make
+the request come from somewhere else.
+
+This project already does that for you. render.yaml pins the region to
+Singapore, because Render's Oregon addresses are refused by Discord. That was
+measured on 9 August 2026 from two separate Render accounts: both Oregon
+services were blocked, and a Singapore service delivered on the first attempt
+with identical code and the same webhook.
+
+So if you see this error, the first thing to check is which region your service
+is actually in, under Settings. Oregon means it was created before that line
+existed, or created by hand rather than from the blueprint. Render cannot move
+an existing service between regions, so the fix is to delete it and create a
+new one, which takes a few minutes and needs the same three values.
+
+If a non-Oregon region is also refused, the remaining option is another free
+host such as Fly.io or Koyeb, using the same project unchanged.
 
 **It posted twice.**
 This normally means the service redeployed between the two checks. Open /state

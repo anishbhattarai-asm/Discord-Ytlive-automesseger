@@ -3,6 +3,13 @@ services:
     name: discord-ytlive-automessenger
     runtime: node
     plan: free
+    # Not a preference. Discord's Cloudflare answers Render's Oregon addresses
+    # with error 1015, "Access denied", and every announcement from there fails
+    # while the identical request from a laptop succeeds. Tested 2026-08-09
+    # from two separate Render accounts in Oregon, both refused, and from
+    # Singapore, which delivered first time. Render defaults to Oregon when
+    # this line is absent, so removing it brings the failure back.
+    region: singapore
     buildCommand: npm install
     startCommand: npm start
     healthCheckPath: /health
