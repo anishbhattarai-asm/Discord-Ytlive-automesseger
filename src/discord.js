@@ -104,6 +104,36 @@ function truncate(text, limit) {
   return `${body.trimEnd()}...`;
 }
 
+// Cloudflare's block pages all begin with the same doctype and conditional
+// comments, so printing the first part of the body says nothing. The two
+// pieces that matter are the numbered error code, which says whether this
+// expires, and the Ray ID, which is what Cloudflare support asks for.
+const CLOUDFLARE_CODES = {
+  1015: "rate limited by Cloudflare, temporary and clears on its own",
+  1020: "access denied by a Cloudflare firewall rule, will not clear by waiting",
+  1010: "browser signature refused",
+  1006: "this IP address is banned",
+};
+
+function describeLimit(body, retryAfter, ray) {
+  if (retryAfter != null) return `Discord's own limiter, retry_after=${retryAfter}s`;
+
+  const code = body.match(/error code:?\s*(\d{4})/i)?.[1];
+  const title = body.match(/<title>([^<]{0,80})<\/title>/i)?.[1]?.trim();
+
+  if (!code && !/cloudflare/i.test(body)) {
+    return `no retry_after, unrecognised body: ${body.slice(0, 120).replace(/\s+/g, " ")}`;
+  }
+
+  return (
+    `Cloudflare${code ? ` error ${code}` : ""}` +
+    `${code && CLOUDFLARE_CODES[code] ? ` (${CLOUDFLARE_CODES[code]})` : ""}` +
+    `${title ? `, page says "${title}"` : ""}` +
+    `${ray ? `, ray ${ray}` : ""}` +
+    ". This is about the address the request comes from, not the webhook."
+  );
+}
+
 export async function sendToDiscord(webhookUrl, payload) {
   const url = `${webhookUrl}${webhookUrl.includes("?") ? "&" : "?"}wait=true`;
 
@@ -132,17 +162,12 @@ export async function sendToDiscord(webhookUrl, payload) {
         // Not JSON, so this is not Discord's own rate limiter talking.
       }
 
-      const blockedByCloudflare = /cloudflare|error code: 1015/i.test(body);
-      lastLimit =
-        `retry_after=${retryAfter ?? "none"}` +
-        (blockedByCloudflare ? ", blocked by Cloudflare rather than Discord" : "");
+      lastLimit = describeLimit(body, retryAfter, res.headers.get("cf-ray"));
 
       // Say this out loud. Without it the only evidence is a generic failure
       // after the retries run out, which cannot distinguish a throttled
       // webhook from a host whose IP address is being refused outright.
-      console.warn(
-        `[discord] rate limited (${lastLimit}): ${body.slice(0, 200).replace(/\s+/g, " ")}`,
-      );
+      console.warn(`[discord] rate limited: ${lastLimit}`);
 
       // Cloudflare sends no retry_after, so widen the wait each time instead
       // of retrying into the same closed door three times in a row.
