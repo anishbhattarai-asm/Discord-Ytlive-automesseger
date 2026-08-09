@@ -125,8 +125,14 @@ function classifyLimit(body, retryAfter, ray) {
     return { text: `Discord's own limiter, retry_after=${retryAfter}s`, permanent: false };
   }
 
-  const code = body.match(/error code:?\s*(\d{4})/i)?.[1];
-  const title = body.match(/<title>([^<]{0,80})<\/title>/i)?.[1]?.trim();
+  // Cloudflare writes the number several ways depending on which page it
+  // serves: "error code: 1015", "Error 1015", and a cf-error-code element.
+  // Matching only the first of those found nothing and left the one useful
+  // fact out of the log.
+  const code =
+    body.match(/error\s*(?:code)?[:\s]*?(1\d{3})\b/i)?.[1] ||
+    body.match(/cf-error-code[^>]*>\s*(\d{4})/i)?.[1];
+  const title = body.match(/<title[^>]*>([^<]{0,200})<\/title>/i)?.[1]?.trim();
 
   if (!code && !/cloudflare/i.test(body)) {
     return {
@@ -135,11 +141,22 @@ function classifyLimit(body, retryAfter, ray) {
     };
   }
 
+  // Falling back to the visible words costs one line and beats reporting
+  // nothing at all, which is what happened when both patterns missed.
+  const gist =
+    title ||
+    body
+      .replace(/<(script|style)[\s\S]*?<\/\1>/gi, " ")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 140);
+
   return {
     text:
-      `Cloudflare${code ? ` error ${code}` : ""}` +
+      `Cloudflare${code ? ` error ${code}` : " (no code found)"}` +
       `${code && CLOUDFLARE_CODES[code] ? ` (${CLOUDFLARE_CODES[code]})` : ""}` +
-      `${title ? `, page says "${title}"` : ""}` +
+      `${gist ? `, page says "${gist}"` : ""}` +
       `${ray ? `, ray ${ray}` : ""}` +
       ". This is about the address the request comes from, not the webhook.",
     permanent: PERMANENT_CODES.has(code),
