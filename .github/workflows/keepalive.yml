@@ -1,13 +1,24 @@
 name: Keep awake and check
 
-# An optional outside scheduler. The service already keeps itself awake and
-# checks on its own, so this is a backup for the case where the host stops the
-# service entirely rather than just letting it idle.
+# An outside scheduler, and worth switching on rather than treating as
+# optional. The service pings itself to stay awake, but a self ping cannot
+# help once the host has stopped it, because a stopped service cannot ping
+# anything. Observed on 11 August 2026: an instance was found stopped after a
+# stream had been running for 22 minutes, and the announcement was lost.
 #
-# To switch it on, add two repository secrets under
+# A cold start makes this worse rather than better. The first check after a
+# start records a stream that is already live without announcing it, so a
+# service that sleeps through the beginning of a stream stays silent for the
+# whole of it. Keeping it awake is what avoids that.
+#
+# To switch it on, add these repository secrets under
 # Settings, Secrets and variables, Actions:
-#   SERVICE_URL   your address, for example https://yourname.onrender.com
-#   CRON_SECRET   the same value you set on your host
+#   SERVICE_URL   one address, or several separated by commas or spaces
+#   CRON_SECRET   the same value you set on your host, optional
+#
+# Several addresses are allowed so one repository can watch more than one
+# deployment, such as your own and a friend's. CRON_SECRET only applies to the
+# first address, since separate deployments do not share a secret.
 #
 # Without SERVICE_URL this workflow exits quietly instead of failing, so an
 # unconfigured fork never sends you failure emails.
@@ -40,19 +51,38 @@ jobs:
             exit 0
           fi
 
-          base="${SERVICE_URL%/}"
+          failed=0
+          first=1
 
-          echo "Waking the service."
-          curl -fsS --max-time 30 --retry 3 --retry-delay 10 "${base}/health"
-          echo
+          # Commas are the documented separator, and spaces are accepted too
+          # because a list pasted from anywhere tends to arrive with both.
+          for raw in $(printf '%s' "${SERVICE_URL}" | tr ',' ' '); do
+            base="${raw%/}"
+            [ -z "${base}" ] && continue
 
-          if [ -z "${CRON_SECRET}" ]; then
-            echo "CRON_SECRET is not set, so only the wake up ping ran."
-            echo "The service checks on its own once awake."
-            exit 0
-          fi
+            echo "Waking ${base}"
+            # A stopped free instance can take close to a minute to answer its
+            # first request, so allow far longer than a warm service needs.
+            if curl -fsS --max-time 90 --retry 3 --retry-delay 15 "${base}/health"; then
+              echo
+            else
+              echo "  could not reach ${base}"
+              failed=1
+              first=0
+              continue
+            fi
 
-          echo "Running a live check."
-          # Sent as a header so the secret stays out of URLs and server logs.
-          curl -fsS --max-time 30 -H "x-cron-key: ${CRON_SECRET}" "${base}/cron"
-          echo
+            if [ -n "${CRON_SECRET}" ] && [ "${first}" = "1" ]; then
+              echo "Running a live check on ${base}"
+              # Sent as a header so the secret stays out of URLs and server logs.
+              curl -fsS --max-time 90 -H "x-cron-key: ${CRON_SECRET}" "${base}/cron" || {
+                echo "  the live check failed"
+                failed=1
+              }
+              echo
+            fi
+
+            first=0
+          done
+
+          exit "${failed}"
